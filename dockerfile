@@ -1,5 +1,5 @@
-# Build Stage
-FROM node:18-alpine AS build
+# Build Stage (Vite/rolldown require Node 20.19+ or 22.12+)
+FROM node:20-alpine AS build
 
 # Set working directory
 WORKDIR /app
