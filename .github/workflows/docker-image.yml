@@ -1,0 +1,43 @@
+name: CI/CD Pipeline with Custom Docker Registry
+
+on:
+  push:
+    branches:
+      - main  # Trigger on push to the main branch
+    tags:
+      - 'v*.*.*'  # Trigger on version tags like v1.0.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Custom Docker Registry
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login dr.bobosoftware.co.za -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Extract version from tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+      - name: Set branch tag
+        if: startsWith(github.ref, 'refs/heads/')
+        run: echo "BRANCH_TAG=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          build-args: |
+            VITE_SKAFTIN_ACCESS_TOKEN=${{ secrets.VITE_SKAFTIN_ACCESS_TOKEN }}
+            VITE_SKAFTIN_API_KEY=${{ secrets.VITE_SKAFTIN_API_KEY }}
+            VITE_SKAFTIN_API_URL=${{ secrets.VITE_SKAFTIN_API_URL }}
+          tags: |
+            dr.bobosoftware.co.za/foroman:latest
+            dr.bobosoftware.co.za/foroman:${{ env.VERSION != '' && env.VERSION || env.BRANCH_TAG }}

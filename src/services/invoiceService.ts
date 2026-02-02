@@ -11,9 +11,10 @@ export class InvoiceService {
 
   /**
    * Get all invoices
+   * POST /app-api/database/tables/invoices/select with limit & offset
    */
   static async findAll(params?: {
-    where?: Record<string, any>;
+    where?: Record<string, unknown>;
     orderBy?: string;
     orderDirection?: 'ASC' | 'DESC';
     limit?: number;
@@ -22,8 +23,11 @@ export class InvoiceService {
     const response = await skaftinClient.post<{ rows: Invoice[]; rowCount: number }>(
       `/app-api/database/tables/${this.TABLE_NAME}/select`,
       {
-        ...params,
-        columns: ['*'],
+        limit: params?.limit ?? 5000,
+        offset: params?.offset ?? 0,
+        ...(params?.where && { where: params.where }),
+        ...(params?.orderBy && { orderBy: params.orderBy }),
+        ...(params?.orderDirection && { orderDirection: params.orderDirection }),
       }
     );
     return response.data.rows || [];
@@ -31,6 +35,7 @@ export class InvoiceService {
 
   /**
    * Get invoice by ID
+   * POST /app-api/database/tables/invoices/select with limit & offset
    */
   static async findById(id: number): Promise<Invoice | null> {
     const response = await skaftinClient.post<{ rows: Invoice[] }>(
@@ -38,6 +43,7 @@ export class InvoiceService {
       {
         where: { id },
         limit: 1,
+        offset: 0,
       }
     );
     return response.data.rows?.[0] || null;
@@ -94,13 +100,15 @@ export class InvoiceService {
 
   /**
    * Count invoices
+   * POST /app-api/database/tables/invoices/select with limit & offset
    */
-  static async count(where?: Record<string, any>): Promise<number> {
+  static async count(where?: Record<string, unknown>): Promise<number> {
     const response = await skaftinClient.post<{ rowCount: number }>(
       `/app-api/database/tables/${this.TABLE_NAME}/select`,
       {
-        where,
+        ...(where && { where }),
         limit: 1,
+        offset: 0,
       }
     );
     return response.data.rowCount || 0;

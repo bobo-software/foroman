@@ -78,7 +78,7 @@ function mapAuthResponseToSessionUser(data: AuthResponseData): SessionUser {
 export const authService = {
   async register(payload: RegisterPayload): Promise<SessionUser> {
     const response = await skaftinClient.post<AuthResponseData>(
-      '/app-api/auth/register',
+      '/app-api/auth/auth/register',
       {
         name: payload.name,
         last_name: payload.last_name,
