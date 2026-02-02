@@ -70,7 +70,7 @@ const AppLabeledSelectInput: React.FC<AppSelectInputProps> = ({
         </select>
 
         <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-          <LuChevronDown className="w-4 h-4 text-slate-400" />
+          {React.createElement(LuChevronDown as React.ComponentType<{ className?: string }>, { className: 'w-4 h-4 text-slate-400' })}
         </div>
       </div>
 

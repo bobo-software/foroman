@@ -150,7 +150,7 @@ const AppLabledAutocomplete: React.FC<AppAutocompleteProps> = ({
               className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
               type="button"
             >
-              <LuX size={16} />
+              {React.createElement(LuX as React.ComponentType<{ size?: number }>, { size: 16 })}
             </button>
           )}
         </div>

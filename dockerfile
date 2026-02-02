@@ -13,14 +13,15 @@ RUN npm install
 # Copy the rest of the source code
 COPY . .
 
-# Accept VITE_SKAFTIN_ACCESS_TOKEN as a build argument
-ENV VITE_SKAFTIN_ACCESS_TOKEN=${VITE_SKAFTIN_ACCESS_TOKEN}
+# Build-time args for Vite env (pass via --build-arg; avoid committing secrets to Dockerfile).
+# Defaults to empty so build succeeds when not provided (e.g. local build).
+ARG VITE_SKAFTIN_ACCESS_TOKEN=""
+ARG VITE_SKAFTIN_API_KEY=""
+ARG VITE_SKAFTIN_API_URL=""
 
-# Accept VITE_SKAFTIN_API_KEY as a build argument
-ENV VITE_SKAFTIN_API_KEY=${VITE_SKAFTIN_API_KEY}
-
-# Accept VITE_SKAFTIN_API_URL as a build argument
-ENV VITE_SKAFTIN_API_URL=${VITE_SKAFTIN_API_URL}
+ENV VITE_SKAFTIN_ACCESS_TOKEN="$VITE_SKAFTIN_ACCESS_TOKEN"
+ENV VITE_SKAFTIN_API_KEY="$VITE_SKAFTIN_API_KEY"
+ENV VITE_SKAFTIN_API_URL="$VITE_SKAFTIN_API_URL"
 
 # Build the project and check for any build errors
 RUN npm run build

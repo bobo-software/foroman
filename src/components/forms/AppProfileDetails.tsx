@@ -37,7 +37,7 @@ interface AppProfileDetailsProps {
 
 const AppProfileDetails: React.FC<AppProfileDetailsProps> = ({
   title = 'Profile Information',
-  icon = <LuUser className="text-blue-600" size={20} />,
+  icon = React.createElement(LuUser as React.ComponentType<{ className?: string; size?: number }>, { className: 'text-blue-600', size: 20 }),
   fields,
   formData,
   onInputChange,
@@ -70,7 +70,7 @@ const AppProfileDetails: React.FC<AppProfileDetailsProps> = ({
           <AppButton
             label="Save Changes"
             onClick={onSave}
-            icon={<LuCheck size={16} />}
+            icon={React.createElement(LuCheck as React.ComponentType<{ size?: number }>, { size: 16 })}
             variant="blue"
           />
         )}
