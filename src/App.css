@@ -34,6 +34,25 @@
   gap: 1rem;
 }
 
+.nav-link {
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #333;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.nav-link:hover {
+  background: #f0f0f0;
+}
+
+.nav-link-active {
+  background: #e8e8ff;
+  color: #535bf2;
+}
+
 .btn-primary,
 .btn-secondary {
   padding: 0.6rem 1.2rem;

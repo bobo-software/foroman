@@ -40,7 +40,6 @@ const useAuthStore = create<AuthState>()(
       login: (userData: SessionUser) => {
         set({ sessionUser: userData });
         set({ accessToken: userData.accessToken });
-        toast.success('Login successful');
       },
       logout: () => {
         set({ sessionUser: null });

@@ -126,7 +126,7 @@ export function InvoiceList() {
                   <td className="invoice-total">{formatCurrency(invoice.total)}</td>
                   <td className="invoice-actions">
                     <Link
-                      to={`/invoices/${invoice.id}`}
+                      to={`${invoice.id}`}
                       className="btn-view"
                     >
                       View

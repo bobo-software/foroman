@@ -12,7 +12,7 @@ export interface ApiResponse<T> {
   data: T;
 }
 
-class SkaftinClient {
+export class SkaftinClient {
   private config: {
     apiUrl: string;
     apiKey: string;

@@ -9,9 +9,9 @@ export function InvoiceFormPage() {
   return (
     <InvoiceForm
       invoiceId={invoiceId}
-      onSuccess={() => navigate('/')}
+      onSuccess={() => navigate('/app/invoices')}
       onCancel={() =>
-        invoiceId ? navigate(`/invoices/${invoiceId}`) : navigate('/')
+        invoiceId ? navigate(`/app/invoices/${invoiceId}`) : navigate('/app/invoices')
       }
     />
   );

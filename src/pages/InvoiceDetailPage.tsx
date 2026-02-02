@@ -7,15 +7,15 @@ export function InvoiceDetailPage() {
   const invoiceId = id ? parseInt(id, 10) : NaN;
 
   if (!id || isNaN(invoiceId)) {
-    navigate('/', { replace: true });
+    navigate('/app/invoices', { replace: true });
     return null;
   }
 
   return (
     <InvoiceDetail
       invoiceId={invoiceId}
-      onEdit={() => navigate(`/invoices/${id}/edit`)}
-      onDelete={() => navigate('/')}
+      onEdit={() => navigate(`/app/invoices/${id}/edit`)}
+      onDelete={() => navigate('/app/invoices')}
     />
   );
 }
