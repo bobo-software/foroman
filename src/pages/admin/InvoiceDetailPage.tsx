@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { InvoiceDetail } from '../components/InvoiceDetail';
+import { InvoiceDetail } from '@components/InvoiceDetail';
 
 export function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();

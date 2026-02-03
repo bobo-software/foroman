@@ -1,68 +1,391 @@
+/*--- FONTS ---*/
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap');
+
+/*--- Tailwind v4 ---*/
 @import "tailwindcss";
 
-:root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light;
-  color: #213547;
-  background-color: #ffffff;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@theme {
+  --font-poppins: "Poppins", sans-serif;
 }
 
-* {
-  box-sizing: border-box;
+@layer utilities {
+  .bg-primary {
+    background-color: #0f172a;
+  }
+
+  .loaderBackground {
+    @apply flex items-center justify-center w-full h-[100%];
+  }
+
+  .absoluteLoader {
+    @apply absolute top-0 left-0 flex items-center justify-center w-full h-full;
+  }
+
+  .fancyBg {
+    @apply bg-slate-700
+  }
+
+  /*--- MODAL ---*/
+
+  .modalBackground {
+    @apply absolute flex items-center justify-center bg-black/50 w-full h-full z-100 top-0 left-0
+  }
+
+  .modalHeightBackground {
+    @apply absolute flex items-center justify-center bg-black/50 w-full z-100 top-0 left-0
+  }
+
+  /* MODAL SIZES */
+
+  .deleteModal {
+    @apply flex flex-col items-center justify-between bg-white h-[35%] w-[90%] md:w-[35%] rounded-2xl dark:bg-slate-800 dark:text-gray-200
+  }
+  .xsModal {
+    @apply flex flex-col items-center justify-between bg-white h-[350px] w-[90%] md:w-[35%] rounded-2xl dark:bg-slate-800 dark:text-gray-200
+  }
+
+  .largeModal {
+    @apply flex flex-col items-center justify-between bg-white dark:bg-slate-800 h-[90%] w-[90%] rounded-lg
+  }
+
+  .mediumModal {
+    @apply flex flex-col items-center justify-between bg-white dark:bg-slate-800 h-[80%] w-[90%] md:w-[70%] rounded-lg
+  }
+
+  .smallModal {
+    @apply flex flex-col items-center justify-between bg-white dark:bg-slate-800 h-[80vh] w-[90%] md:w-[600px] rounded-lg
+  }
+
+  /* --- --- */
+
+
+  /* MODAL LAYOUT */
+  .modalHeader {
+    @apply flex items-center w-full font-semibold justify-between p-4
+  }
+
+  .modalContent {
+    @apply flex flex-col px-6 w-full h-full overflow-y-auto
+  }
+
+  .modalBtnFooter {
+    @apply flex w-full justify-center md:justify-end border-t-[1px] rounded-b-xl dark:bg-slate-900 dark:border-slate-700
+  }
+
+  /* --- --- */
+
+  /* MODAL TEXT */
+
+  .modalTextRow {
+    @apply flex flex-col md:flex-row gap-2;
+  }
+
+  .modalHeading {
+    @apply text-gray-700 font-semibold text-2xl font-poppins dark:text-white;
+  }
+
+  .btnText {
+    @apply font-semibold font-poppins ;
+  }
+  .modaltext {
+    @apply text-green-800 font-semibold font-poppins dark:text-white;
+  }
+
+  .modaltextsmall {
+    @apply text-green-800 font-light font-poppins text-[8pt] dark:text-white text-center;
+  }
+
+  .modaltextsmallBold {
+    @apply text-green-800 font-semibold font-poppins text-[7.5pt] dark:text-white;
+  }
+
+  /* --- --- */
+
+  /*--- BUTTONS ---*/
+
+  .pageBtngreen {
+    @apply w-[100px] h-[35px] text-xs p-2 border-2 border-green-300 rounded-lg font-semibold text-slate-700 hover:bg-green-300 m-2 duration-200 cursor-pointer
+  }
+
+  .pageBtngood {
+    @apply w-[120px] h-[35px] text-xs p-2 rounded-lg font-semibold text-slate-700 bg-green-300 hover:bg-green-400 dark:border-green-400 dark:bg-green-400/50 dark:text-white m-2 duration-200 cursor-pointer
+  }
+
+  .pageBtngoodSmall {
+    @apply border-[2px] w-[80px] h-[35px] text-xs border-slate-700 p-2 rounded-lg font-semibold text-slate-700 bg-green-300 hover:bg-green-400 dark:border-green-400 dark:bg-green-400/50 dark:text-white m-2 duration-200 cursor-pointer
+  }
+
+  .pageBtnBlue {
+    @apply border-[2px] w-[120px] h-[35px] text-xs border-slate-700 p-2 rounded-lg font-semibold text-slate-700 bg-blue-300 hover:bg-blue-400 dark:border-green-400 dark:bg-green-400/50 dark:text-white m-2 duration-200 cursor-pointer
+  }
+
+  .pageBtnWarn {
+    @apply border-[2px] w-[120px] h-[35px] text-xs p-2 rounded-lg font-semibold bg-orange-400 hover:bg-orange-500 dark:border-orange-400 dark:bg-orange-400/50 dark:text-white text-white m-2 duration-200 cursor-pointer
+  }
+
+  .pageBtncancel {
+    @apply w-[120px] h-[35px] text-xs p-2 rounded-lg font-semibold bg-red-400 dark:border-red-400 dark:bg-red-400/50 dark:text-white hover:bg-red-500 text-white m-2 duration-200 cursor-pointer
+  }
+
+  .pageBtncancelsmall {
+    @apply border-[2px] w-[80px] h-[35px] text-xs border-slate-700 p-2 rounded-lg font-semibold bg-red-400 dark:border-red-400 dark:bg-red-400/50 dark:text-white hover:bg-red-500 text-white m-2 duration-200 cursor-pointer
+  }
+
+  .closeBtn {
+    @apply cursor-pointer h-[40px] w-[100px] bg-red-500 rounded-lg text-white text-lg hover:bg-red-400 duration-200
+  }
+
+  .addBtn {
+    @apply flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200
+  }
+
+  /* filter buttons */
+
+  .filterBtnGreen {
+    @apply px-3 py-2 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors duration-200
+  }
+
+  .filterBtnGrey{
+    @apply px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors duration-200
+  }
+
+  .filterBtnOrange {
+    @apply px-3 py-2 text-sm font-medium text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors duration-200
+  }
+
+  .filterBtnInactive {
+    @apply px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors duration-200
+  }
+
+  .filterBtnRed {
+    @apply px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors duration-200
+  }
+  
+
+
+
+  .homeScreenBtn {
+    @apply w-[80px] border-slate-700 rounded-lg text-slate-700 hover:bg-green-400 hover:text-white duration-200 cursor-pointer
+  }
+
+  .homeScreenSignInBtn {
+    @apply border-[2px] w-[80px] py-2 border-slate-700 rounded-lg text-slate-700 hover:bg-orange-400 hover:text-white m-1 duration-200 cursor-pointer text-sm
+  }
+
+  .loginForm {
+    @apply border-[2px] text-[1rem] w-[300px] border-slate-700 p-4 rounded-lg bg-white m-2 cursor-pointer
+  }
+
+  .loginBtn {
+    @apply border-[2px] w-[150px] border-slate-700 p-2 rounded-lg text-slate-700 hover:bg-green-400 hover:text-white m-2 duration-200 cursor-pointer
+  }
+
+  .uploadBtn {
+    @apply border-[2px] w-[120px] h-[35px] text-xs border-slate-700 p-2 rounded-lg font-semibold text-slate-700 bg-green-300 hover:bg-green-400 dark:border-green-400 dark:bg-green-400/50 dark:text-white m-2 duration-200 cursor-pointer
+  }
+
+  .uploadBtn2 {
+    @apply border-[2px] w-[250px] text-sm border-slate-700 p-2 rounded-lg text-slate-700 hover:bg-green-400 hover:text-white duration-200 cursor-pointer
+  }
+
+  /*--- TILES ---*/
+
+  .selectDutyTile {
+    @apply flex items-center justify-around cursor-pointer hover:bg-green-400 border-[1px] w-[80%] h-[55px] border-gray-500 p-2 rounded-lg font-semibold text-slate-700 duration-200 hover:shadow-xl shadow-black
+  }
+
+  /* --- --- */
+
+  /*--- FORM ---*/
+  .formSection {
+    @apply flex flex-row justify-between mx-2 my-1
+  }
+
+  /* --- --- */
+
+  /*--- INPUTS ---*/
+  .normalSelectInput {
+    @apply border-[1px] w-[200px] h-[55px] border-gray-500 bg-transparent p-2 rounded-lg font-semibold text-slate-700
+  }
+  
+  .longSelectInput {
+    @apply border-[1px] w-[250px] md:w-[500px] px-2 h-[55px] border-gray-500 bg-transparent p-2 rounded-lg font-semibold text-slate-700
+  }
+
+  .longerTextInput {
+    @apply border-[1px] w-[320px] h-[55px] border-gray-500 rounded-md bg-transparent p-[4px]
+  }
+
+  .longTextInput {
+    @apply flex-grow border-[1px] w-[250px] md:w-[500px] h-[55px] border-gray-500 rounded-md bg-transparent p-[4px];
+  }
+  .longTextArea {
+    @apply flex-grow border-[1px] w-[250px] md:w-[500px] h-[120px] border-gray-500 rounded-md bg-transparent p-[4px];
+  }
+
+  .normalTextInput {
+    @apply border-[1px] w-[150px] h-[55px] border-gray-500 rounded-md bg-transparent p-[4px]
+  }
+
+
+  .mediumTextInput {
+    @apply border-[1px] border-gray-500 rounded-md h-[56px] w-[300px] p-[4px]
+  }
+
+  .tinyNumberInput {
+    @apply border-[1px] p-[3px] h-[30px] w-[50px] rounded-md border-gray-500 bg-transparent text-center
+  }
+
+  .smallNumberInput {
+    @apply border-[1px] p-[3px] h-[55px] w-[100px] rounded-md border-gray-500 bg-transparent
+  }
+
+  .textAreaSmall {
+    @apply border-[1px] border-gray-500 rounded-md w-[250px] h-[150px] p-[4px] bg-transparent
+  }
+
+
+
+  .textAreaMedium {
+    @apply border-[1px] border-gray-500 rounded-md w-[550px] h-[200px] p-[4px]
+  }
+
+  .borderThemed {
+    @apply border-[1px] border-slate-900 dark:border-white
+  }
+
+  /* --- --- */
+
+  /* --- TEXT --- */
+
+  .navBarText {
+    @apply font-bold mx-2 font-poppins dark:text-white;
+  }
+
+  .sideBarText {
+    @apply font-light mx-2 font-poppins dark:text-white;
+  }
+
+  .homeTitle {
+    @apply font-medium text-[2.5rem] mx-2 font-poppins dark:text-white;
+  }
+
+  /* --- --- */
+
+  /* --- THEME --- */
+  .greenBg {
+    @apply bg-white dark:bg-slate-800 dark:text-gray-200;
+    /* This is already a Tailwind color utility */
+  }
+
+  .accentColor {
+    @apply text-[#30855d];
+    /* Use text utility for color */
+  }
+
+  .dark-mode {
+    @apply bg-slate-800 text-gray-200;
+    /* Use Tailwind dark mode utilities */
+  }
+
+  .dark-btns {
+    @apply bg-slate-800 text-gray-200;
+    /* Use Tailwind dark mode utilities */
+  }
+
+
+  /* RANDOM SIZES */
+  .pageHeight {
+    @apply h-[88vh] p-2 overflow-y-auto border-slate-400 bg-white rounded-b-lg dark:bg-slate-800 dark:text-gray-200;
+    /*  */
+  }
+
+  /* .layout {
+    @apply ;
+  } */
+
+  /* NAVBAR */
+  .navBar {
+    @apply flex items-center justify-between bg-slate-300 rounded-t-lg h-[150px];
+    /*  */
+  }
+
+  /* ---SIDEBAR--- */
+
+  /* ---TILES--- */
+  .docTile {
+    @apply flex flex-col justify-between bg-slate-50 rounded-lg p-2 w-[350px] my-2
+  }
+
+  /* --- */
+
+  .sideBar {
+    @apply flex flex-col items-center h-screen bg-slate-200
+  }
+
+  /* --- */
+
+  /* ---PICTRES--- */
+
+  .modalProfilePicture {
+    @apply w-[110px] h-[110px] object-cover rounded-lg
+  }
+
+  .settingsProfilePicture {
+    @apply w-[150px] h-[150px] object-cover rounded-lg
+  }
+
+  ;
+
+  .navProfilePicture {
+    @apply w-[50px] h-[50px] object-cover rounded-lg
+  }
+
+  /* --- */
+
+  /* COLORS */
+  .bg-primary {
+    background-color: #1E3A8A;
+    /* Indigo Blue */
+  }
+
+  .text-primary {
+    color: #111827;
+    /* Black */
+  }
+
+
+
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
+/* Add this to your CSS file */
+.modal-enter {
+  opacity: 0;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  margin: 0;
-  font-weight: 600;
+.modal-enter-active {
+  opacity: 1;
+  transition: opacity 300ms;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+.modal-exit {
+  opacity: 1;
 }
 
-a:hover {
-  color: #535bf2;
+.modal-exit-active {
+  opacity: 0;
+  transition: opacity 300ms;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #f9f9f9;
-  cursor: pointer;
-  transition: border-color 0.25s, background-color 0.25s;
-}
-
-button:hover {
-  border-color: #646cff;
-}
-
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-input,
-select,
-textarea {
-  font-family: inherit;
+.modalBackground {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
 }

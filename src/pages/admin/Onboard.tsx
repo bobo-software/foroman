@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import useAuthStore from '@stores/data/AuthStore';
 
 export function Onboard() {
   const navigate = useNavigate();
+  const isLoggedIn = !!useAuthStore((s) => s.accessToken ?? s.sessionUser?.accessToken);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [taxId, setTaxId] = useState('');
@@ -20,7 +22,7 @@ export function Onboard() {
       // TODO: call companies API when Skaftin table exists
       // await companyService.create({ name: name.trim(), address: address.trim(), tax_id: taxId.trim() });
       toast.success('Company saved');
-      navigate('/app', { replace: true });
+      navigate(isLoggedIn ? '/app' : '/login', { replace: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to save company';
       toast.error(message);
@@ -31,7 +33,7 @@ export function Onboard() {
 
   const handleSkip = () => {
     toast.success('You can add your company later in Settings');
-    navigate('/app', { replace: true });
+    navigate(isLoggedIn ? '/app' : '/login', { replace: true });
   };
 
   return (

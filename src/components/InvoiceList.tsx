@@ -88,6 +88,12 @@ export function InvoiceList() {
             <option value="overdue">Overdue</option>
             <option value="cancelled">Cancelled</option>
           </select>
+          <Link
+            to="/app/invoices/create"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white no-underline hover:bg-indigo-500"
+          >
+            + New Invoice
+          </Link>
         </div>
       </div>
 

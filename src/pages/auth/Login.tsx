@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { authService } from '../services/authService';
+import { authService } from '../../services/authService';
+import { AppButton } from '@components/ComponentsIndex';
 
 export function Login() {
   const navigate = useNavigate();
@@ -11,8 +12,7 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!email.trim() || !password) {
       toast.error('Please enter email and password');
       return;
@@ -43,7 +43,7 @@ export function Login() {
           </Link>
           <h2 className="mt-4 text-xl font-semibold text-slate-800">Log in</h2>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+     
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
               Email
@@ -71,14 +71,14 @@ export function Login() {
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
             />
           </div>
-          <button
-            type="submit"
+          <AppButton
+            label={loading ? 'Signing in…' : 'Log in'}
+            variant="blue"
+            onClick={handleSubmit}
+            loading={loading}
             disabled={loading}
-            className="w-full rounded-lg bg-slate-900 px-4 py-2.5 font-medium text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
-          >
-            {loading ? 'Signing in…' : 'Log in'}
-          </button>
-        </form>
+          />
+    
         <p className="text-center text-sm text-slate-600">
           Don’t have an account?{' '}
           <Link to="/register" className="font-medium text-slate-900 hover:underline">

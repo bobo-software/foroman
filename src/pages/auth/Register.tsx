@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { authService } from '../services/authService';
+import { authService } from '../../services/authService';
 
 export function Register() {
   const navigate = useNavigate();
@@ -23,14 +23,19 @@ export function Register() {
     }
     setLoading(true);
     try {
-      await authService.register({
+      const result = await authService.register({
         name: name.trim(),
         last_name: lastName.trim() || undefined,
         email: email.trim(),
         password,
       });
-      toast.success('Account created');
-      navigate('/onboard', { replace: true });
+      if (result.requiresOtp) {
+        toast.success('Check your email for the verification code');
+        navigate('/verify-otp', { replace: true, state: { email: email.trim(), userId: result.userId } });
+      } else {
+        toast.success('Account created');
+        navigate('/onboard', { replace: true });
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Registration failed';
       toast.error(message);

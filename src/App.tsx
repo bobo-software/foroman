@@ -1,17 +1,24 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Landing } from './pages/Landing';
-import { Login } from './pages/Login';
-import { Register } from './pages/Register';
-import { Onboard } from './pages/Onboard';
-import { AppLayout } from './layouts/AppLayout';
-import { InvoiceListPage } from './pages/InvoiceListPage';
-import { InvoiceDetailPage } from './pages/InvoiceDetailPage';
-import { InvoiceFormPage } from './pages/InvoiceFormPage';
-import { ItemsPage } from './pages/ItemsPage';
-import { QuotationsPage } from './pages/QuotationsPage';
-import { StatementsPage } from './pages/StatementsPage';
+import { Login } from '@pages/auth/Login';
+import { Register } from '@pages/auth/Register';
+import { VerifyOtp } from '@pages/auth/VerifyOtp';
+import { Onboard } from '@pages/admin/Onboard';
+import { DashboardPage } from '@pages/admin/DashboardPage';
+import { InvoiceListPage } from '@pages/admin/InvoiceListPage';
+import { InvoiceDetailPage } from '@pages/admin/InvoiceDetailPage';
+import { InvoiceFormPage } from '@pages/admin/InvoiceFormPage';
+import { CustomersPage } from '@pages/admin/CustomersPage';
+import { CustomerDetailPage } from '@pages/admin/CustomerDetailPage';
+import { CustomerFormPage } from '@pages/admin/CustomerFormPage';
+import { ItemsPage } from '@pages/admin/ItemsPage';
+import { ItemDetailPage } from '@pages/admin/ItemDetailPage';
+import { ItemFormPage } from '@pages/admin/ItemFormPage';
+import { QuotationsPage } from '@pages/admin/QuotationsPage';
+import { StatementsPage } from '@pages/admin/StatementsPage';
 import './App.css';
+import { AppLayout } from './layouts/AppLayout';
 
 function App() {
   return (
@@ -19,9 +26,16 @@ function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/onboard" element={<ProtectedRoute><Onboard /></ProtectedRoute>} />
+      <Route path="/verify-otp" element={<VerifyOtp />} />
+      <Route path="/onboard" element={<Onboard />} />
       <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-        <Route index element={<Navigate to="/app/invoices" replace />} />
+        <Route index element={<Navigate to="/app/dashboard" replace />} />
+        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="customers" element={<Outlet />}>
+          <Route index element={<CustomersPage />} />
+          <Route path="create" element={<CustomerFormPage />} />
+          <Route path=":id" element={<CustomerDetailPage />} />
+        </Route>
         <Route path="invoices" element={<Outlet />}>
           {/* Nested invoice routes */}
           <Route index element={<InvoiceListPage />} />
@@ -29,7 +43,12 @@ function App() {
           <Route path=":id" element={<InvoiceDetailPage />} />
           <Route path=":id/edit" element={<InvoiceFormPage />} />
         </Route>
-        <Route path="items" element={<ItemsPage />} />
+        <Route path="items" element={<Outlet />}>
+          <Route index element={<ItemsPage />} />
+          <Route path="create" element={<ItemFormPage />} />
+          <Route path=":id" element={<ItemDetailPage />} />
+          <Route path=":id/edit" element={<ItemFormPage />} />
+        </Route>
         <Route path="quotations" element={<QuotationsPage />} />
         <Route path="statements" element={<StatementsPage />} />
       </Route>

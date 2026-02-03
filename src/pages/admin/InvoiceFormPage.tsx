@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { InvoiceForm } from '../components/InvoiceForm';
+import { InvoiceForm } from '@components/InvoiceForm';
 
 export function InvoiceFormPage() {
   const { id } = useParams<{ id: string }>();

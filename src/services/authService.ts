@@ -40,11 +40,13 @@ interface AuthResponseSession {
 
 interface AuthResponseData {
   user: AuthResponseUser;
-  session: AuthResponseSession;
+  session?: AuthResponseSession;
   organisation_id?: number;
   organisation_name?: string;
   organisation?: { id: number; name: string; is_admin?: boolean };
   is_admin?: boolean;
+  requires_otp_verification?: boolean;
+  otp_method?: string;
 }
 
 function mapAuthResponseToSessionUser(data: AuthResponseData): SessionUser {
@@ -75,8 +77,15 @@ function mapAuthResponseToSessionUser(data: AuthResponseData): SessionUser {
   };
 }
 
+export interface RegisterResult {
+  requiresOtp: boolean;
+  email?: string;
+  userId?: number;
+  sessionUser?: SessionUser;
+}
+
 export const authService = {
-  async register(payload: RegisterPayload): Promise<SessionUser> {
+  async register(payload: RegisterPayload): Promise<RegisterResult> {
     const response = await skaftinClient.post<AuthResponseData>(
       '/app-api/auth/auth/register',
       {
@@ -91,17 +100,53 @@ export const authService = {
       }
     );
     const data = response.data;
-    if (!data?.user || !data?.session?.accessToken) {
+    if (!data?.user) {
       throw new Error('Invalid register response');
     }
-    const sessionUser = mapAuthResponseToSessionUser(data);
+    const sessionUser = data.session?.accessToken
+      ? mapAuthResponseToSessionUser(data)
+      : undefined;
+    if (data.requires_otp_verification) {
+      if (sessionUser) useAuthStore.getState().login(sessionUser);
+      return {
+        requiresOtp: true,
+        email: payload.email,
+        userId: data.user.id,
+      };
+    }
+    if (!sessionUser) throw new Error('Invalid register response');
     useAuthStore.getState().login(sessionUser);
-    return sessionUser;
+    return { requiresOtp: false, sessionUser };
+  },
+
+  /**
+   * Verify OTP after registration. Returns SessionUser if server includes a session;
+   * otherwise returns null (account activated, user should log in).
+   */
+  async verifyOtp(email: string, otp: string): Promise<SessionUser | null> {
+    const response = await skaftinClient.post<AuthResponseData>(
+      '/app-api/auth/auth/verify-otp',
+      { email, code: otp }
+    );
+    const data = response.data;
+    if (!data?.user) {
+      throw new Error('Invalid verify response');
+    }
+    if (data.session?.accessToken) {
+      const sessionUser = mapAuthResponseToSessionUser(data);
+      useAuthStore.getState().login(sessionUser);
+      return sessionUser;
+    }
+    return null;
+  },
+
+  async resendOtp(userId: number, method: 'email' | 'sms' = 'email'): Promise<void> {
+    await skaftinClient.post(`/app-api/auth/users/${userId}/resend-otp`, { method });
   },
 
   async login(payload: LoginPayload): Promise<SessionUser> {
     const response = await skaftinClient.post<AuthResponseData>(
-      '/app-api/auth/login',
+      '/app-api/auth/auth/login',
       {
         username: payload.username,
         password: payload.password,
