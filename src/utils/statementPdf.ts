@@ -25,7 +25,7 @@ function drawHLine(doc: import('jspdf').jsPDF, y: number, thick = false) {
 }
 
 export async function generateStatementPdf(
-  customerName: string,
+  companyName: string,
   fromDate: string,
   toDate: string,
   rows: StatementRow[],
@@ -43,7 +43,7 @@ export async function generateStatementPdf(
   y += lh + 2;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Customer: ${customerName}`, margin, y);
+  doc.text(`Company: ${companyName}`, margin, y);
   y += lh;
   doc.text(`From: ${fromDate}  To: ${toDate}`, margin, y);
   doc.text(`Currency: ${currency}`, margin + 100, y);
@@ -84,5 +84,5 @@ export async function generateStatementPdf(
 
   y += 4;
   drawHLine(doc, y, true);
-  doc.save(`statement-${customerName.replace(/\s+/g, '-')}-${fromDate}-${toDate}.pdf`);
+  doc.save(`statement-${companyName.replace(/\s+/g, '-')}-${fromDate}-${toDate}.pdf`);
 }

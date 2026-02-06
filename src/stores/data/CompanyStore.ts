@@ -1,39 +1,45 @@
 import { create } from 'zustand';
 import CompanyService from '../../services/companyService';
+import { useBusinessStore } from './BusinessStore';
 import type { Company } from '../../types/company';
 
 interface CompanyState {
-  currentCompany: Company | null;
   companies: Company[];
   loading: boolean;
   error: string | null;
-  fetchUserCompanies: (userId: number) => Promise<void>;
-  setCurrentCompany: (company: Company | null) => void;
+  fetchCompanies: () => Promise<void>;
+  removeCompany: (id: number) => Promise<void>;
 }
 
 export const useCompanyStore = create<CompanyState>((set, get) => ({
-  currentCompany: null,
   companies: [],
   loading: false,
   error: null,
 
-  fetchUserCompanies: async (userId: number) => {
+  fetchCompanies: async () => {
+    const businessId = useBusinessStore.getState().currentBusiness?.id;
+    const where = businessId != null ? { business_id: businessId } : undefined;
     set({ loading: true, error: null });
     try {
-      const companies = await CompanyService.getCompaniesForUser(userId);
-      set({
-        companies,
-        currentCompany: companies[0] || null,
-        loading: false,
+      const data = await CompanyService.findAll({
+        where,
+        orderBy: 'name',
+        orderDirection: 'ASC',
       });
+      set({ companies: data, loading: false });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load companies';
-      set({ error: message, loading: false, companies: [], currentCompany: null });
+      set({ error: message, loading: false });
       console.error('Failed to load companies:', err);
     }
   },
 
-  setCurrentCompany: (company: Company | null) => {
-    set({ currentCompany: company });
+  removeCompany: async (id: number) => {
+    try {
+      await CompanyService.delete(id);
+      set({ companies: get().companies.filter((c) => c.id !== id) });
+    } catch (err) {
+      throw err;
+    }
   },
 }));

@@ -58,7 +58,7 @@ export function PaymentList() {
 
   const columns = useMemo<MRT_ColumnDef<Payment>[]>(
     () => [
-      { accessorKey: 'customer_name', header: 'Customer', enableColumnFilter: true },
+      { accessorKey: 'customer_name', header: 'Company', enableColumnFilter: true },
       {
         accessorKey: 'amount',
         header: 'Amount',

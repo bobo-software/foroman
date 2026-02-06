@@ -7,7 +7,7 @@ import QuotationService from '../../services/quotationService';
 import QuotationLineService from '../../services/quotationLineService';
 import InvoiceService from '../../services/invoiceService';
 import InvoiceItemService from '../../services/invoiceItemService';
-import { useCompanyStore } from '../../stores/data/CompanyStore';
+import { useBusinessStore } from '../../stores/data/BusinessStore';
 import { formatCurrency } from '../../utils/currency';
 import { generateQuotationPdf } from '../../utils/quotationPdf';
 
@@ -86,7 +86,7 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
         validUntil && validUntil > issueDateObj
           ? validUntil.toISOString().split('T')[0]
           : new Date(issueDateObj.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const companyId = useCompanyStore.getState().currentCompany?.id;
+      const businessId = useBusinessStore.getState().currentBusiness?.id;
       const payload: CreateInvoiceDto = {
         invoice_number: invoiceNumber,
         customer_name: quotation.customer_name,
@@ -101,7 +101,7 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
         total: Number(quotation.total) || 0,
         currency: quotation.currency || 'ZAR',
         notes: quotation.notes,
-        ...(companyId != null && { company_id: companyId }),
+        ...(businessId != null && { business_id: businessId }),
       };
       const created = await InvoiceService.create(payload);
       const newId = created?.id;
@@ -229,12 +229,12 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
       <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-lg shadow border border-gray-200 dark:border-gray-700">
         <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">
-            Customer Information
+            Company Information
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
-                Customer Name
+                Company Name
               </label>
               <p className="m-0 text-base text-gray-800 dark:text-gray-200">{quotation.customer_name}</p>
             </div>

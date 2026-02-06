@@ -5,6 +5,7 @@ import { Box, IconButton, Tooltip } from '@mui/material';
 import { LuFileDown, LuFilter } from 'react-icons/lu';
 import type { Quotation } from '../../types/quotation';
 import { useQuotationStore } from '../../stores/data/QuotationStore';
+import { useAutoRefresh, useProjectId } from '../../hooks';
 import MRTThemeProvider from '../providers/MRTThemeProvider';
 import { formatCurrency } from '../../utils/currency';
 import { downloadQuotationPdfById } from '../../utils/quotationPdf';
@@ -16,12 +17,16 @@ function formatDate(dateString: string) {
 export function QuotationList() {
   const navigate = useNavigate();
   const { quotations, loading, error, fetchQuotations } = useQuotationStore();
+  const projectId = useProjectId();
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     fetchQuotations({ status: filterStatus });
   }, [fetchQuotations, filterStatus]);
+
+  // Auto-refresh when quotations table changes (real-time updates)
+  useAutoRefresh(projectId, 'quotations', () => fetchQuotations({ status: filterStatus }));
 
   const filteredQuotations = useMemo(() => {
     if (!search.trim()) return quotations;
@@ -47,7 +52,7 @@ export function QuotationList() {
   const columns = useMemo<MRT_ColumnDef<Quotation>[]>(
     () => [
       { accessorKey: 'quotation_number', header: 'Quotation #', enableColumnFilter: true },
-      { accessorKey: 'customer_name', header: 'Customer', enableColumnFilter: true },
+      { accessorKey: 'customer_name', header: 'Company', enableColumnFilter: true },
       {
         accessorKey: 'issue_date',
         header: 'Issue Date',

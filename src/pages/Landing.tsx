@@ -43,7 +43,7 @@ export function Landing() {
             <span className="text-indigo-600 dark:text-indigo-400">simplified</span>
           </h1>
           <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            Create quotes, turn them into invoices, record payments, and run customer statements—all in one place.
+            Create quotes, turn them into invoices, record payments, and run company statements—all in one place.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
             <Link
@@ -82,7 +82,7 @@ export function Landing() {
             {
               icon: LuClipboardList,
               title: 'Statements',
-              description: 'Run statements per customer with date range and running balance.',
+              description: 'Run statements per company with date range and running balance.',
             },
           ].map(({ icon: Icon, title, description }) => (
             <div

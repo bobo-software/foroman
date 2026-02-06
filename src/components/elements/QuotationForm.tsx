@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { CreateQuotationDto, QuotationStatus, QuotationLine } from '../../types/quotation';
-import type { Customer } from '../../types/customer';
+import type { Company } from '../../types/company';
 import type { Item } from '../../types/item';
 import QuotationService from '../../services/quotationService';
 import QuotationLineService from '../../services/quotationLineService';
-import CustomerService from '../../services/customerService';
+import CompanyService from '../../services/companyService';
 import ItemService from '../../services/itemService';
-import { useCompanyStore } from '../../stores/data/CompanyStore';
+import { useBusinessStore } from '../../stores/data/BusinessStore';
 import AppLabledAutocomplete from '../forms/AppLabledAutocomplete';
 import { formatCurrency, SUPPORTED_CURRENCIES } from '../../utils/currency';
 
@@ -19,6 +19,7 @@ interface QuotationFormProps {
 interface LineRow {
   id: string;
   itemId?: number;
+  sku?: string;
   description: string;
   quantity: number;
   unit_price: number;
@@ -33,9 +34,9 @@ function lineTotal(row: LineRow): number {
 export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [stockItems, setStockItems] = useState<Item[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [lineRows, setLineRows] = useState<LineRow[]>([]);
   const [globalDiscountPercent, setGlobalDiscountPercent] = useState(0);
 
@@ -44,6 +45,11 @@ export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFor
     customer_name: '',
     customer_email: '',
     customer_address: '',
+    customer_vat_number: '',
+    delivery_address: '',
+    delivery_conditions: '',
+    order_number: '',
+    terms: 'C.O.D',
     issue_date: new Date().toISOString().split('T')[0],
     valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     status: 'draft',
@@ -56,9 +62,9 @@ export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFor
   });
 
   useEffect(() => {
-    Promise.all([CustomerService.findAll(), ItemService.findAll()]).then(
-      ([custs, items]) => {
-        setCustomers(custs);
+    Promise.all([CompanyService.findAll(), ItemService.findAll()]).then(
+      ([comps, items]) => {
+        setCompanies(comps);
         setStockItems(items);
       }
     );
@@ -95,6 +101,11 @@ export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFor
           customer_name: quotation.customer_name,
           customer_email: quotation.customer_email || '',
           customer_address: quotation.customer_address || '',
+          customer_vat_number: quotation.customer_vat_number || '',
+          delivery_address: quotation.delivery_address || '',
+          delivery_conditions: quotation.delivery_conditions || '',
+          order_number: quotation.order_number || '',
+          terms: quotation.terms || 'C.O.D',
           issue_date: quotation.issue_date.split('T')[0],
           valid_until: quotation.valid_until ? quotation.valid_until.split('T')[0] : '',
           status: quotation.status,
@@ -105,7 +116,7 @@ export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFor
           currency: quotation.currency || 'ZAR',
           notes: quotation.notes || '',
         });
-        setSelectedCustomer(null);
+        setSelectedCompany(null);
         const rows: LineRow[] = (items || []).map((item) => {
           const qty = item.quantity || 1;
           const up = Number(item.unit_price) || 0;
@@ -116,6 +127,7 @@ export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFor
           return {
             id: `line-${item.id ?? Math.random()}`,
             itemId: item.item_id,
+            sku: item.sku || '',
             description: item.description,
             quantity: qty,
             unit_price: up,
@@ -160,23 +172,25 @@ export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFor
     setFormData((prev) => ({ ...prev, [field]: value }));
   }, []);
 
-  const handleCustomerSelect = useCallback((customer: Customer) => {
-    setSelectedCustomer(customer);
+  const handleCompanySelect = useCallback((company: Company) => {
+    setSelectedCompany(company);
     setFormData((prev) => ({
       ...prev,
-      customer_name: customer.name,
-      customer_email: customer.email || '',
-      customer_address: customer.address || '',
+      customer_name: company.name,
+      customer_email: company.email || '',
+      customer_address: company.address || '',
+      customer_vat_number: company.vat_number || '',
     }));
   }, []);
 
-  const handleCustomerClear = useCallback(() => {
-    setSelectedCustomer(null);
+  const handleCompanyClear = useCallback(() => {
+    setSelectedCompany(null);
     setFormData((prev) => ({
       ...prev,
       customer_name: '',
       customer_email: '',
       customer_address: '',
+      customer_vat_number: '',
     }));
   }, []);
 
@@ -207,6 +221,7 @@ export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFor
     (id: string) => (item: Item) => {
       updateLine(id, {
         itemId: item.id,
+        sku: item.sku || '',
         description: item.name,
         unit_price: item.unit_price ?? 0,
       });
@@ -218,22 +233,23 @@ export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFor
     e.preventDefault();
     setError(null);
     if (!formData.quotation_number || !formData.customer_name) {
-      setError('Quotation number and customer are required');
+      setError('Quotation number and company are required');
       return;
     }
     const items: (Omit<QuotationLine, 'id' | 'quotation_id'> & { item_id?: number })[] = lineRows
       .filter((r) => r.description && r.quantity > 0)
       .map((r) => ({
+        sku: r.sku || undefined,
         description: r.description,
         quantity: r.quantity,
         unit_price: r.unit_price,
         total: lineTotal(r),
         item_id: r.itemId,
       }));
-    const companyId = useCompanyStore.getState().currentCompany?.id;
+    const businessId = useBusinessStore.getState().currentBusiness?.id;
     const payload: CreateQuotationDto = {
       ...formData,
-      ...(companyId != null && { company_id: companyId }),
+      ...(businessId != null && { business_id: businessId }),
       items: items.length ? items : undefined,
     };
     try {
@@ -298,6 +314,19 @@ export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFor
             />
           </div>
           <div className={groupClass}>
+            <label htmlFor="order_number" className={labelClass}>
+              Order #
+            </label>
+            <input
+              id="order_number"
+              type="text"
+              value={formData.order_number || ''}
+              onChange={(e) => handleChange('order_number', e.target.value)}
+              className={inputClass}
+              placeholder="PO number"
+            />
+          </div>
+          <div className={groupClass}>
             <label htmlFor="status" className={labelClass}>
               Status
             </label>
@@ -357,30 +386,94 @@ export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFor
               className={inputClass}
             />
           </div>
+          <div className={groupClass}>
+            <label htmlFor="terms" className={labelClass}>
+              Terms
+            </label>
+            <select
+              id="terms"
+              value={formData.terms || ''}
+              onChange={(e) => handleChange('terms', e.target.value)}
+              className={inputClass}
+            >
+              <option value="">Select terms...</option>
+              <option value="C.O.D">C.O.D (Cash on Delivery)</option>
+              <option value="Net 7">Net 7 Days</option>
+              <option value="Net 14">Net 14 Days</option>
+              <option value="Net 30">Net 30 Days</option>
+              <option value="Net 60">Net 60 Days</option>
+              <option value="Due on Receipt">Due on Receipt</option>
+            </select>
+          </div>
+          <div className={groupClass}>
+            <label htmlFor="delivery_conditions" className={labelClass}>
+              Delivery
+            </label>
+            <select
+              id="delivery_conditions"
+              value={formData.delivery_conditions || ''}
+              onChange={(e) => handleChange('delivery_conditions', e.target.value)}
+              className={inputClass}
+            >
+              <option value="">Select...</option>
+              <option value="collect">Collect</option>
+              <option value="deliver">Deliver</option>
+            </select>
+          </div>
         </div>
 
         <div className="pb-3 mb-4 border-b border-gray-200 dark:border-gray-700">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
-            Customer
+            Company
           </h3>
-          <AppLabledAutocomplete
-            label="Customer *"
-            options={customers}
-            value={selectedCustomer?.id != null ? String(selectedCustomer.id) : ''}
-            displayValue={selectedCustomer?.name ?? formData.customer_name}
-            accessor="name"
-            valueAccessor="id"
-            onSelect={handleCustomerSelect}
-            onClear={handleCustomerClear}
-            required
-            placeholder="Search customer..."
-          />
-          {(formData.customer_email || formData.customer_address) && (
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
-              {formData.customer_email && <div>{formData.customer_email}</div>}
-              {formData.customer_address && <div>{formData.customer_address}</div>}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <AppLabledAutocomplete
+                label="Company *"
+                options={companies}
+                value={selectedCompany?.id != null ? String(selectedCompany.id) : ''}
+                displayValue={selectedCompany?.name ?? formData.customer_name}
+                accessor="name"
+                valueAccessor="id"
+                onSelect={handleCompanySelect}
+                onClear={handleCompanyClear}
+                required
+                placeholder="Search company..."
+              />
+              {(formData.customer_email || formData.customer_address) && (
+                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+                  {formData.customer_email && <div>{formData.customer_email}</div>}
+                  {formData.customer_address && <div>{formData.customer_address}</div>}
+                </div>
+              )}
+              <div className={`${groupClass} mt-2`}>
+                <label htmlFor="customer_vat_number" className={labelClass}>
+                  Company VAT #
+                </label>
+                <input
+                  id="customer_vat_number"
+                  type="text"
+                  value={formData.customer_vat_number || ''}
+                  onChange={(e) => handleChange('customer_vat_number', e.target.value)}
+                  className={inputClass}
+                  placeholder="VAT number"
+                />
+              </div>
             </div>
-          )}
+            <div className={groupClass}>
+              <label htmlFor="delivery_address" className={labelClass}>
+                Delivery address
+              </label>
+              <textarea
+                id="delivery_address"
+                value={formData.delivery_address || ''}
+                onChange={(e) => handleChange('delivery_address', e.target.value)}
+                rows={3}
+                className={`${inputClass} resize-y min-h-[80px]`}
+                placeholder="Delivery address (if different from billing)"
+              />
+            </div>
+          </div>
         </div>
 
         <div className="pb-3 mb-4 border-b border-gray-200 dark:border-gray-700">

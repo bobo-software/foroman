@@ -1,26 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { CreatePaymentDto } from '../../types/payment';
 import { PAYMENT_METHODS } from '../../types/payment';
-import type { Customer } from '../../types/customer';
+import type { Company } from '../../types/company';
 import PaymentService from '../../services/paymentService';
-import CustomerService from '../../services/customerService';
-import { useCompanyStore } from '../../stores/data/CompanyStore';
+import CompanyService from '../../services/companyService';
+import { useBusinessStore } from '../../stores/data/BusinessStore';
 import AppLabledAutocomplete from '../forms/AppLabledAutocomplete';
 import { SUPPORTED_CURRENCIES } from '../../utils/currency';
 
 interface PaymentFormProps {
-  initialCustomerName?: string;
+  initialCompanyName?: string;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
-export function PaymentForm({ initialCustomerName, onSuccess, onCancel }: PaymentFormProps) {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+export function PaymentForm({ initialCompanyName, onSuccess, onCancel }: PaymentFormProps) {
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreatePaymentDto>({
-    customer_name: initialCustomerName ?? '',
+    customer_name: initialCompanyName ?? '',
     amount: 0,
     currency: 'ZAR',
     date: new Date().toISOString().split('T')[0],
@@ -29,41 +29,41 @@ export function PaymentForm({ initialCustomerName, onSuccess, onCancel }: Paymen
   });
 
   useEffect(() => {
-    CustomerService.findAll().then(setCustomers);
+    CompanyService.findAll().then(setCompanies);
   }, []);
 
   useEffect(() => {
-    if (initialCustomerName && customers.length > 0 && !selectedCustomer) {
-      const match = customers.find(
-        (c) => c.name.toLowerCase() === initialCustomerName.toLowerCase()
+    if (initialCompanyName && companies.length > 0 && !selectedCompany) {
+      const match = companies.find(
+        (c) => c.name.toLowerCase() === initialCompanyName.toLowerCase()
       );
       if (match) {
-        setSelectedCustomer(match);
+        setSelectedCompany(match);
         setFormData((prev) => ({ ...prev, customer_name: match.name }));
       } else {
-        setFormData((prev) => ({ ...prev, customer_name: initialCustomerName }));
+        setFormData((prev) => ({ ...prev, customer_name: initialCompanyName }));
       }
     }
-  }, [initialCustomerName, customers, selectedCustomer]);
+  }, [initialCompanyName, companies, selectedCompany]);
 
   const handleChange = useCallback((field: keyof CreatePaymentDto, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   }, []);
 
-  const handleCustomerSelect = useCallback((customer: Customer) => {
-    setSelectedCustomer(customer);
-    setFormData((prev) => ({ ...prev, customer_name: customer.name }));
+  const handleCompanySelect = useCallback((company: Company) => {
+    setSelectedCompany(company);
+    setFormData((prev) => ({ ...prev, customer_name: company.name }));
   }, []);
 
-  const handleCustomerClear = useCallback(() => {
-    setSelectedCustomer(null);
+  const handleCompanyClear = useCallback(() => {
+    setSelectedCompany(null);
     setFormData((prev) => ({ ...prev, customer_name: '' }));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.customer_name?.trim()) {
-      setError('Customer is required');
+      setError('Company is required');
       return;
     }
     if (Number(formData.amount) <= 0) {
@@ -73,11 +73,11 @@ export function PaymentForm({ initialCustomerName, onSuccess, onCancel }: Paymen
     try {
       setLoading(true);
       setError(null);
-      const companyId = useCompanyStore.getState().currentCompany?.id;
+      const businessId = useBusinessStore.getState().currentBusiness?.id;
       await PaymentService.create({
         ...formData,
         amount: Number(formData.amount),
-        ...(companyId != null && { company_id: companyId }),
+        ...(businessId != null && { business_id: businessId }),
       });
       onSuccess?.();
     } catch (err) {
@@ -106,16 +106,16 @@ export function PaymentForm({ initialCustomerName, onSuccess, onCancel }: Paymen
       >
         <div className="pb-3 mb-4 border-b border-gray-200 dark:border-gray-700">
           <AppLabledAutocomplete
-            label="Customer *"
-            options={customers}
-            value={selectedCustomer?.id != null ? String(selectedCustomer.id) : ''}
-            displayValue={selectedCustomer?.name ?? formData.customer_name}
+            label="Company *"
+            options={companies}
+            value={selectedCompany?.id != null ? String(selectedCompany.id) : ''}
+            displayValue={selectedCompany?.name ?? formData.customer_name}
             accessor="name"
             valueAccessor="id"
-            onSelect={handleCustomerSelect}
-            onClear={handleCustomerClear}
+            onSelect={handleCompanySelect}
+            onClear={handleCompanyClear}
             required
-            placeholder="Search customer..."
+            placeholder="Search company..."
           />
         </div>
         <div className="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">

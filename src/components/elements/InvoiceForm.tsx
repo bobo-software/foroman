@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { CreateInvoiceDto, InvoiceStatus, InvoiceItem } from '../../types/invoice';
-import type { Customer } from '../../types/customer';
+import type { Company } from '../../types/company';
 import type { Item } from '../../types/item';
 import InvoiceService from '../../services/invoiceService';
 import InvoiceItemService from '../../services/invoiceItemService';
-import CustomerService from '../../services/customerService';
+import CompanyService from '../../services/companyService';
 import ItemService from '../../services/itemService';
-import { useCompanyStore } from '../../stores/data/CompanyStore';
+import { useBusinessStore } from '../../stores/data/BusinessStore';
 import AppLabledAutocomplete from '../forms/AppLabledAutocomplete';
 import { formatCurrency, SUPPORTED_CURRENCIES } from '../../utils/currency';
 
@@ -19,6 +19,7 @@ interface InvoiceFormProps {
 interface LineRow {
   id: string;
   itemId?: number;
+  sku?: string;
   description: string;
   quantity: number;
   unit_price: number;
@@ -33,9 +34,9 @@ function lineTotal(row: LineRow): number {
 export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [stockItems, setStockItems] = useState<Item[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [lineRows, setLineRows] = useState<LineRow[]>([]);
   const [globalDiscountPercent, setGlobalDiscountPercent] = useState(0);
 
@@ -44,6 +45,11 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
     customer_name: '',
     customer_email: '',
     customer_address: '',
+    customer_vat_number: '',
+    delivery_address: '',
+    delivery_conditions: '',
+    order_number: '',
+    terms: 'C.O.D',
     issue_date: new Date().toISOString().split('T')[0],
     due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     status: 'draft',
@@ -55,11 +61,11 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
     notes: '',
   });
 
-  // Load customers and stock items on mount
+  // Load companies and stock items on mount
   useEffect(() => {
-    Promise.all([CustomerService.findAll(), ItemService.findAll()]).then(
-      ([custs, items]) => {
-        setCustomers(custs);
+    Promise.all([CompanyService.findAll(), ItemService.findAll()]).then(
+      ([comps, items]) => {
+        setCompanies(comps);
         setStockItems(items);
       }
     );
@@ -97,6 +103,11 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
           customer_name: invoice.customer_name,
           customer_email: invoice.customer_email || '',
           customer_address: invoice.customer_address || '',
+          customer_vat_number: invoice.customer_vat_number || '',
+          delivery_address: invoice.delivery_address || '',
+          delivery_conditions: invoice.delivery_conditions || '',
+          order_number: invoice.order_number || '',
+          terms: invoice.terms || 'C.O.D',
           issue_date: invoice.issue_date.split('T')[0],
           due_date: invoice.due_date.split('T')[0],
           status: invoice.status,
@@ -107,7 +118,7 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
           currency: invoice.currency || 'ZAR',
           notes: invoice.notes || '',
         });
-        setSelectedCustomer(null);
+        setSelectedCompany(null);
         const rows: LineRow[] = (items || []).map((item) => {
           const qty = item.quantity || 1;
           const up = Number(item.unit_price) || 0;
@@ -118,6 +129,7 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
           return {
             id: `line-${item.id ?? Math.random()}`,
             itemId: item.item_id,
+            sku: item.sku || '',
             description: item.description,
             quantity: qty,
             unit_price: up,
@@ -164,23 +176,25 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
     setFormData((prev) => ({ ...prev, [field]: value }));
   }, []);
 
-  const handleCustomerSelect = useCallback((customer: Customer) => {
-    setSelectedCustomer(customer);
+  const handleCompanySelect = useCallback((company: Company) => {
+    setSelectedCompany(company);
     setFormData((prev) => ({
       ...prev,
-      customer_name: customer.name,
-      customer_email: customer.email || '',
-      customer_address: customer.address || '',
+      customer_name: company.name,
+      customer_email: company.email || '',
+      customer_address: company.address || '',
+      customer_vat_number: company.vat_number || '',
     }));
   }, []);
 
-  const handleCustomerClear = useCallback(() => {
-    setSelectedCustomer(null);
+  const handleCompanyClear = useCallback(() => {
+    setSelectedCompany(null);
     setFormData((prev) => ({
       ...prev,
       customer_name: '',
       customer_email: '',
       customer_address: '',
+      customer_vat_number: '',
     }));
   }, []);
 
@@ -211,6 +225,7 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
     (id: string) => (item: Item) => {
       updateLine(id, {
         itemId: item.id,
+        sku: item.sku || '',
         description: item.name,
         unit_price: item.unit_price ?? 0,
       });
@@ -222,22 +237,23 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
     e.preventDefault();
     setError(null);
     if (!formData.invoice_number || !formData.customer_name) {
-      setError('Invoice number and customer are required');
+      setError('Invoice number and company are required');
       return;
     }
     const items = lineRows
       .filter((r) => r.description && r.quantity > 0)
       .map((r) => ({
+        sku: r.sku || undefined,
         description: r.description,
         quantity: r.quantity,
         unit_price: r.unit_price,
         total: lineTotal(r),
         item_id: r.itemId,
       }));
-    const companyId = useCompanyStore.getState().currentCompany?.id;
+    const businessId = useBusinessStore.getState().currentBusiness?.id;
     const payload: CreateInvoiceDto = {
       ...formData,
-      ...(companyId != null && { company_id: companyId }),
+      ...(businessId != null && { business_id: businessId }),
       items: items.length ? items : undefined,
     };
     try {
@@ -302,6 +318,19 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
             />
           </div>
           <div className={groupClass}>
+            <label htmlFor="order_number" className={labelClass}>
+              Order #
+            </label>
+            <input
+              id="order_number"
+              type="text"
+              value={formData.order_number || ''}
+              onChange={(e) => handleChange('order_number', e.target.value)}
+              className={inputClass}
+              placeholder="PO number"
+            />
+          </div>
+          <div className={groupClass}>
             <label htmlFor="status" className={labelClass}>
               Status
             </label>
@@ -316,6 +345,23 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
               <option value="paid">Paid</option>
               <option value="overdue">Overdue</option>
               <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div className={groupClass}>
+            <label htmlFor="currency" className={labelClass}>
+              Currency
+            </label>
+            <select
+              id="currency"
+              value={formData.currency || 'ZAR'}
+              onChange={(e) => handleChange('currency', e.target.value)}
+              className={inputClass}
+            >
+              {SUPPORTED_CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
           </div>
           <div className={groupClass}>
@@ -345,46 +391,93 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
             />
           </div>
           <div className={groupClass}>
-            <label htmlFor="currency" className={labelClass}>
-              Currency
+            <label htmlFor="terms" className={labelClass}>
+              Terms
             </label>
             <select
-              id="currency"
-              value={formData.currency || 'ZAR'}
-              onChange={(e) => handleChange('currency', e.target.value)}
+              id="terms"
+              value={formData.terms || ''}
+              onChange={(e) => handleChange('terms', e.target.value)}
               className={inputClass}
             >
-              {SUPPORTED_CURRENCIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
+              <option value="">Select terms...</option>
+              <option value="C.O.D">C.O.D (Cash on Delivery)</option>
+              <option value="Net 7">Net 7 Days</option>
+              <option value="Net 14">Net 14 Days</option>
+              <option value="Net 30">Net 30 Days</option>
+              <option value="Net 60">Net 60 Days</option>
+              <option value="Due on Receipt">Due on Receipt</option>
+            </select>
+          </div>
+          <div className={groupClass}>
+            <label htmlFor="delivery_conditions" className={labelClass}>
+              Delivery
+            </label>
+            <select
+              id="delivery_conditions"
+              value={formData.delivery_conditions || ''}
+              onChange={(e) => handleChange('delivery_conditions', e.target.value)}
+              className={inputClass}
+            >
+              <option value="">Select...</option>
+              <option value="collect">Collect</option>
+              <option value="deliver">Deliver</option>
             </select>
           </div>
         </div>
 
         <div className="pb-3 mb-4 border-b border-gray-200 dark:border-gray-700">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
-            Customer
+            Company
           </h3>
-          <AppLabledAutocomplete
-            label="Customer *"
-            options={customers}
-            value={selectedCustomer?.id != null ? String(selectedCustomer.id) : ''}
-            displayValue={selectedCustomer?.name ?? formData.customer_name}
-            accessor="name"
-            valueAccessor="id"
-            onSelect={handleCustomerSelect}
-            onClear={handleCustomerClear}
-            required
-            placeholder="Search customer..."
-          />
-          {(formData.customer_email || formData.customer_address) && (
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
-              {formData.customer_email && <div>{formData.customer_email}</div>}
-              {formData.customer_address && <div>{formData.customer_address}</div>}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <AppLabledAutocomplete
+                label="Company *"
+                options={companies}
+                value={selectedCompany?.id != null ? String(selectedCompany.id) : ''}
+                displayValue={selectedCompany?.name ?? formData.customer_name}
+                accessor="name"
+                valueAccessor="id"
+                onSelect={handleCompanySelect}
+                onClear={handleCompanyClear}
+                required
+                placeholder="Search company..."
+              />
+              {(formData.customer_email || formData.customer_address) && (
+                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+                  {formData.customer_email && <div>{formData.customer_email}</div>}
+                  {formData.customer_address && <div>{formData.customer_address}</div>}
+                </div>
+              )}
+              <div className={`${groupClass} mt-2`}>
+                <label htmlFor="customer_vat_number" className={labelClass}>
+                  Company VAT #
+                </label>
+                <input
+                  id="customer_vat_number"
+                  type="text"
+                  value={formData.customer_vat_number || ''}
+                  onChange={(e) => handleChange('customer_vat_number', e.target.value)}
+                  className={inputClass}
+                  placeholder="VAT number"
+                />
+              </div>
             </div>
-          )}
+            <div className={groupClass}>
+              <label htmlFor="delivery_address" className={labelClass}>
+                Delivery address
+              </label>
+              <textarea
+                id="delivery_address"
+                value={formData.delivery_address || ''}
+                onChange={(e) => handleChange('delivery_address', e.target.value)}
+                rows={3}
+                className={`${inputClass} resize-y min-h-[80px]`}
+                placeholder="Delivery address (if different from billing)"
+              />
+            </div>
+          </div>
         </div>
 
         <div className="pb-3 mb-4 border-b border-gray-200 dark:border-gray-700">
@@ -411,7 +504,17 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
                   key={row.id}
                   className="grid grid-cols-1 gap-2 p-2 rounded-md bg-gray-50 dark:bg-gray-700/50 md:grid-cols-12 md:items-end"
                 >
-                  <div className="md:col-span-4">
+                  <div className={`${groupClass} md:col-span-2`}>
+                    <label className={labelClass}>SKU</label>
+                    <input
+                      type="text"
+                      value={row.sku || ''}
+                      onChange={(e) => updateLine(row.id, { sku: e.target.value })}
+                      className={inputClass}
+                      placeholder="SKU"
+                    />
+                  </div>
+                  <div className="md:col-span-3">
                     <AppLabledAutocomplete
                       label=""
                       options={stockItems}
@@ -421,7 +524,7 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
                       valueAccessor="id"
                       onSelect={onItemSelect(row.id)}
                       onClear={() =>
-                        updateLine(row.id, { itemId: undefined, description: '', unit_price: 0 })
+                        updateLine(row.id, { itemId: undefined, sku: '', description: '', unit_price: 0 })
                       }
                       placeholder="Item"
                       className="mb-0"
@@ -454,8 +557,8 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
                       className={inputClass}
                     />
                   </div>
-                  <div className={`${groupClass} md:col-span-2`}>
-                    <label className={labelClass}>Discount %</label>
+                  <div className={`${groupClass} md:col-span-1`}>
+                    <label className={labelClass}>Disc %</label>
                     <input
                       type="number"
                       step="0.01"

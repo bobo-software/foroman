@@ -1,12 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { authService } from '../../services/authService';
+import useAuthStore from '../../stores/data/AuthStore';
 
 export function ForgotPassword() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
+  
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const error = useAuthStore((s) => s.error);
+  const clearError = useAuthStore((s) => s.clearError);
+
+  // Clear error on unmount
+  useEffect(() => {
+    return () => {
+      clearError();
+    };
+  }, [clearError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -14,7 +25,9 @@ export function ForgotPassword() {
       toast.error('Please enter your email');
       return;
     }
-    setLoading(true);
+    
+    clearError();
+    
     try {
       await authService.forgotPassword(email.trim());
       toast.success('Check your email for the reset code');
@@ -25,8 +38,6 @@ export function ForgotPassword() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to send reset code';
       toast.error(message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -50,6 +61,12 @@ export function ForgotPassword() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
+              <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+            </div>
+          )}
+
           <div>
             <label
               htmlFor="email"
@@ -63,17 +80,25 @@ export function ForgotPassword() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              disabled={isLoading}
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="you@example.com"
             />
           </div>
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            disabled={isLoading}
+            className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
           >
-            {loading ? 'Sending…' : 'Send reset code'}
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />
+                Sending…
+              </>
+            ) : (
+              'Send reset code'
+            )}
           </button>
         </form>
 

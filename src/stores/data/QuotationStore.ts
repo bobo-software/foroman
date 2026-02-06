@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import QuotationService from '../../services/quotationService';
-import { useCompanyStore } from './CompanyStore';
+import { useBusinessStore } from './BusinessStore';
 import type { Quotation } from '../../types/quotation';
 
 interface QuotationState {
@@ -18,9 +18,9 @@ export const useQuotationStore = create<QuotationState>((set, get) => ({
   error: null,
 
   fetchQuotations: async (params?: { status?: string }) => {
-    const companyId = useCompanyStore.getState().currentCompany?.id;
+    const businessId = useBusinessStore.getState().currentBusiness?.id;
     const where: Record<string, unknown> = {};
-    if (companyId != null) where.company_id = companyId;
+    if (businessId != null) where.business_id = businessId;
     if (params?.status && params.status !== 'all') where.status = params.status;
     const finalWhere = Object.keys(where).length > 0 ? where : undefined;
     set({ loading: true, error: null });

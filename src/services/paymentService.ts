@@ -57,9 +57,9 @@ export class PaymentService {
     return p ? normalizePayment(p) : null;
   }
 
-  static async findByCustomer(customerName: string): Promise<Payment[]> {
+  static async findByCompany(companyName: string): Promise<Payment[]> {
     return this.findAll({
-      where: { customer_name: customerName },
+      where: { customer_name: companyName },
       orderBy: 'date',
       orderDirection: 'DESC',
     });

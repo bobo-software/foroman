@@ -4,19 +4,24 @@ import { MaterialReactTable, type MRT_ColumnDef } from 'material-react-table';
 import { Box, IconButton, Tooltip } from '@mui/material';
 import { LuEye, LuFilter, LuPencil, LuTrash2 } from 'react-icons/lu';
 import { useItemStore } from '../../stores/data/ItemStore';
-import { useCompanyStore } from '../../stores/data/CompanyStore';
+import { useBusinessStore } from '../../stores/data/BusinessStore';
+import { useAutoRefresh, useProjectId } from '../../hooks';
 import MRTThemeProvider from '../providers/MRTThemeProvider';
 import type { Item } from '../../types/item';
 import { formatCurrency } from '../../utils/currency';
 
 export function ItemList() {
   const { items, loading, error, fetchItems, removeItem } = useItemStore();
-  const companyId = useCompanyStore((s) => s.currentCompany?.id);
+  const businessId = useBusinessStore((s) => s.currentBusiness?.id);
+  const projectId = useProjectId();
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     fetchItems();
-  }, [fetchItems, companyId]);
+  }, [fetchItems, businessId]);
+
+  // Auto-refresh when items table changes (real-time updates)
+  useAutoRefresh(projectId, 'items', fetchItems);
 
   const filteredItems = useMemo(() => {
     if (!search.trim()) return items;

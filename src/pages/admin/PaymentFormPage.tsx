@@ -4,11 +4,11 @@ import { PaymentForm } from '@/components/elements/PaymentForm';
 export function PaymentFormPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const customerName = searchParams.get('customer') ?? undefined;
+  const companyName = searchParams.get('company') ?? undefined;
 
   return (
     <PaymentForm
-      initialCustomerName={customerName}
+      initialCompanyName={companyName}
       onSuccess={() => navigate('/app/payments')}
       onCancel={() => navigate('/app/payments')}
     />

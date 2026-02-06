@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import useThemeStore from '../../stores/state/ThemeStore';
 
-export function AppSidebar() {
+const AppSidebar = () => {
   const location = useLocation();
   const theme = useThemeStore((s) => s.theme);
   const isDark = theme === 'dark';
@@ -43,7 +43,7 @@ export function AppSidebar() {
       </div>
       <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
         {navLink('/app/dashboard', 'Dashboard')}
-        {navLink('/app/customers', 'Customers')}
+        {navLink('/app/companies', 'Companies')}
         {navLink('/app/items', 'Stock')}
         {navLink('/app/invoices', 'Invoices')}
         {navLink('/app/quotations', 'Quotations')}
@@ -54,9 +54,11 @@ export function AppSidebar() {
         <p className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
           Settings
         </p>
-        {navLink('/app/settings/company', 'Company')}
+        {navLink('/app/settings/business', 'Business')}
         {navLink('/app/settings/preferences', 'Preferences')}
       </div>
     </aside>
   );
 }
+
+export default AppSidebar;

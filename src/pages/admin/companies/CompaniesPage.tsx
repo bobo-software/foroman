@@ -1,26 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MaterialReactTable, type MRT_ColumnDef } from 'material-react-table';
-import { useCustomerStore } from '../../stores/data/CustomerStore';
-import { useCompanyStore } from '../../stores/data/CompanyStore';
-import MRTThemeProvider from '../providers/MRTThemeProvider';
-import type { Customer } from '../../types/customer';
+import { useCompanyStore } from '@/stores/data/CompanyStore';
+import { useBusinessStore } from '@/stores/data/BusinessStore';
+import { useAutoRefresh, useProjectId } from '@/hooks';
+import MRTThemeProvider from '@/components/providers/MRTThemeProvider';
+import type { Company } from '@/types/company';
 import { LuFilter } from 'react-icons/lu';
 
-export function CustomerList() {
+export function CompaniesPage() {
   const navigate = useNavigate();
-  const { customers, loading, error, fetchCustomers } = useCustomerStore();
-  const companyId = useCompanyStore((s) => s.currentCompany?.id);
+  const { companies, loading, error, fetchCompanies } = useCompanyStore();
+  const businessId = useBusinessStore((s) => s.currentBusiness?.id);
+  const projectId = useProjectId();
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers, companyId]);
+    fetchCompanies();
+  }, [fetchCompanies, businessId]);
 
-  const filteredCustomers = useMemo(() => {
-    if (!search.trim()) return customers;
+  // Auto-refresh when companies table changes (real-time updates)
+  useAutoRefresh(projectId, 'companies', fetchCompanies);
+
+  const filteredCompanies = useMemo(() => {
+    if (!search.trim()) return companies;
     const q = search.trim().toLowerCase();
-    return customers.filter(
+    return companies.filter(
       (c) =>
         (c.name?.toLowerCase().includes(q)) ||
         (c.company_name?.toLowerCase().includes(q)) ||
@@ -28,9 +33,9 @@ export function CustomerList() {
         (c.phone?.toLowerCase().includes(q)) ||
         (c.tax_id?.toLowerCase().includes(q))
     );
-  }, [customers, search]);
+  }, [companies, search]);
 
-  const columns = useMemo<MRT_ColumnDef<Customer>[]>(
+  const columns = useMemo<MRT_ColumnDef<Company>[]>(
     () => [
       { accessorKey: 'name', header: 'Name', enableColumnFilter: true },
       { accessorKey: 'company_name', header: 'Business', enableColumnFilter: true },
@@ -44,9 +49,9 @@ export function CustomerList() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Customers</h1>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Companies</h1>
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-8 text-center text-slate-500 dark:text-slate-400">
-          Loading customers…
+          Loading companies…
         </div>
       </div>
     );
@@ -54,7 +59,7 @@ export function CustomerList() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Customers</h1>
+      <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Companies</h1>
       <div className="flex items-center gap-3">
         <div className="relative min-w-0 flex-1">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
@@ -64,22 +69,22 @@ export function CustomerList() {
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search customers…"
+            placeholder="Search companies…"
             className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            aria-label="Search customers"
+            aria-label="Search companies"
           />
         </div>
         <Link
-          to="/app/customers/create"
+          to="/app/companies/create"
           className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white no-underline hover:bg-indigo-500"
         >
-          + Add customer
+          + Add company
         </Link>
       </div>
       <MRTThemeProvider>
         <MaterialReactTable
           columns={columns}
-          data={filteredCustomers}
+          data={filteredCompanies}
           state={{ showAlertBanner: !!error }}
           enableTopToolbar={false}
           enableColumnFilters={false}
@@ -90,7 +95,7 @@ export function CustomerList() {
           muiTableBodyRowProps={({ row }) => ({
             onClick: () => {
               const id = row.original.id;
-              if (id != null) navigate(`/app/customers/${id}`);
+              if (id != null) navigate(`/app/companies/${id}`);
             },
             sx: { cursor: 'pointer' },
           })}

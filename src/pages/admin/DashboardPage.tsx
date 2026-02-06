@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import InvoiceService from '@/services/invoiceService';
-import CustomerService from '@/services/customerService';
-import { useCompanyStore } from '@/stores/data/CompanyStore';
+import CompanyService from '@/services/companyService';
+import { useBusinessStore } from '@/stores/data/BusinessStore';
 import QuotationService from '@/services/quotationService';
 import ItemService from '@/services/itemService';
 import type { Invoice } from '@/types/invoice';
@@ -48,10 +48,10 @@ function StatCard({ title, value, icon, to, loading }: StatCardProps) {
 }
 
 export function DashboardPage() {
-  const companyId = useCompanyStore((s) => s.currentCompany?.id);
+  const businessId = useBusinessStore((s) => s.currentBusiness?.id);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    customers: 0,
+    companies: 0,
     invoices: 0,
     quotations: 0,
     items: 0,
@@ -64,12 +64,12 @@ export function DashboardPage() {
 
     async function load() {
       try {
-        const companyWhere = companyId != null ? { company_id: companyId } : undefined;
-        const [customers, invoices, quotations, items, recent] = await Promise.all([
-          CustomerService.count(companyWhere),
+        const businessWhere = businessId != null ? { business_id: businessId } : undefined;
+        const [companies, invoices, quotations, items, recent] = await Promise.all([
+          CompanyService.count(businessWhere),
           InvoiceService.count(),
           QuotationService.count(),
-          ItemService.count(companyWhere),
+          ItemService.count(businessWhere),
           InvoiceService.findAll({
             orderBy: 'issue_date',
             orderDirection: 'DESC',
@@ -77,7 +77,7 @@ export function DashboardPage() {
           }),
         ]);
         if (!cancelled) {
-          setStats({ customers, invoices, quotations, items });
+          setStats({ companies, invoices, quotations, items });
           setRecentInvoices(recent);
         }
       } catch (e) {
@@ -92,7 +92,7 @@ export function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [companyId]);
+  }, [businessId]);
 
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString();
 
@@ -105,10 +105,10 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Customers"
-          value={stats.customers}
+          title="Companies"
+          value={stats.companies}
           icon={<LuUsers className="w-5 h-5" />}
-          to="/app/customers"
+          to="/app/companies"
           loading={loading}
         />
         <StatCard
@@ -162,7 +162,7 @@ export function DashboardPage() {
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/50 text-left text-slate-600 dark:text-slate-300 font-medium">
                   <th className="px-5 py-3">Invoice #</th>
-                  <th className="px-5 py-3">Customer</th>
+                  <th className="px-5 py-3">Company</th>
                   <th className="px-5 py-3">Date</th>
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3 text-right">Total</th>

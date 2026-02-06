@@ -1,22 +1,22 @@
 /**
- * Customer Service
- * Handles all customer-related API calls (CRM)
+ * Contact Service
+ * Handles all contact-related API calls (people at client companies)
  */
 
 import { skaftinClient } from '../backend';
-import type { Customer, CreateCustomerDto } from '../types/customer';
+import type { Contact, CreateContactDto } from '../types/contact';
 
-const TABLE_NAME = 'customers';
+const TABLE_NAME = 'contacts';
 
-export class CustomerService {
+export class ContactService {
   static async findAll(params?: {
     where?: Record<string, unknown>;
     orderBy?: string;
     orderDirection?: 'ASC' | 'DESC';
     limit?: number;
     offset?: number;
-  }): Promise<Customer[]> {
-    const response = await skaftinClient.post<{ rows: Customer[]; rowCount: number } | Customer[]>(
+  }): Promise<Contact[]> {
+    const response = await skaftinClient.post<{ rows: Contact[]; rowCount: number } | Contact[]>(
       `/app-api/database/tables/${TABLE_NAME}/select`,
       {
         limit: params?.limit ?? 5000,
@@ -31,8 +31,12 @@ export class CustomerService {
     return data?.rows || [];
   }
 
-  static async findById(id: number): Promise<Customer | null> {
-    const response = await skaftinClient.post<{ rows: Customer[] } | Customer[]>(
+  static async findByCompanyId(companyId: number): Promise<Contact[]> {
+    return this.findAll({ where: { company_id: companyId } });
+  }
+
+  static async findById(id: number): Promise<Contact | null> {
+    const response = await skaftinClient.post<{ rows: Contact[] } | Contact[]>(
       `/app-api/database/tables/${TABLE_NAME}/select`,
       {
         where: { id },
@@ -45,15 +49,15 @@ export class CustomerService {
     return data?.rows?.[0] || null;
   }
 
-  static async create(data: CreateCustomerDto): Promise<Customer> {
-    const response = await skaftinClient.post<Customer>(
+  static async create(data: CreateContactDto): Promise<Contact> {
+    const response = await skaftinClient.post<Contact>(
       `/app-api/database/tables/${TABLE_NAME}/insert`,
       { data }
     );
     return response.data;
   }
 
-  static async update(id: number, data: Partial<CreateCustomerDto>): Promise<{ rowCount: number }> {
+  static async update(id: number, data: Partial<CreateContactDto>): Promise<{ rowCount: number }> {
     const response = await skaftinClient.put<{ rowCount: number }>(
       `/app-api/database/tables/${TABLE_NAME}/update`,
       {
@@ -74,19 +78,21 @@ export class CustomerService {
     return response.data;
   }
 
-  static async count(where?: Record<string, unknown>): Promise<number> {
-    const response = await skaftinClient.post<{ rows: Customer[]; rowCount: number } | Customer[]>(
-      `/app-api/database/tables/${TABLE_NAME}/select`,
-      {
-        ...(where && { where }),
-        limit: 1,
-        offset: 0,
+  static async setPrimary(id: number, companyId: number): Promise<void> {
+    // First, unset any existing primary contacts for this company
+    const existingPrimary = await this.findAll({
+      where: { company_id: companyId, is_primary: true }
+    });
+    
+    for (const contact of existingPrimary) {
+      if (contact.id && contact.id !== id) {
+        await this.update(contact.id, { is_primary: false });
       }
-    );
-    const data = response.data;
-    if (Array.isArray(data)) return data.length;
-    return (data as { rowCount?: number })?.rowCount || 0;
+    }
+    
+    // Set the new primary contact
+    await this.update(id, { is_primary: true });
   }
 }
 
-export default CustomerService;
+export default ContactService;

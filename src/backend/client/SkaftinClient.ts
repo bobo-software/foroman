@@ -1,15 +1,21 @@
 /**
  * Skaftin SDK Client
- * Unified client for all Skaftin API interactions
+ * Unified client for all Skaftin API interactions with automatic token refresh
  */
 
-import useAuthStore from '../../stores/data/AuthStore';
+import { SKAFTIN_CONFIG } from '../../config/skaftin.config';
+import { TokenManager } from '../../services/TokenManager';
 
 export interface ApiResponse<T> {
   success: boolean;
   message?: string;
   error?: string;
   data: T;
+}
+
+export interface RefreshResponse {
+  status: string;
+  accessToken?: string;
 }
 
 export class SkaftinClient {
@@ -20,12 +26,15 @@ export class SkaftinClient {
     projectId: string | null;
   };
   private initialized = false;
+  private isRefreshing = false;
+  private refreshSubscribers: Array<(token: string) => void> = [];
+  private failedRefreshSubscribers: Array<(error: Error) => void> = [];
 
   constructor() {
-    const apiUrl = import.meta.env.VITE_SKAFTIN_API_URL || 'http://localhost:4006';
-    const apiKey = import.meta.env.VITE_SKAFTIN_API_KEY || import.meta.env.VITE_SKAFTIN_API || '';
-    const accessToken = import.meta.env.VITE_SKAFTIN_ACCESS_TOKEN || '';
-    const projectId = import.meta.env.VITE_SKAFTIN_PROJECT_ID || null;
+    const apiUrl = SKAFTIN_CONFIG.apiUrl;
+    const apiKey = SKAFTIN_CONFIG.apiKey;
+    const accessToken = SKAFTIN_CONFIG.accessToken;
+    const projectId = SKAFTIN_CONFIG.projectId;
 
     this.config = { apiUrl, apiKey, accessToken, projectId };
 
@@ -71,10 +80,8 @@ export class SkaftinClient {
       ...customHeaders,
     };
 
-    // Always add Authorization Bearer token if user is authenticated
-    // Get token from AuthStore (stored after login)
-    const authState = useAuthStore.getState();
-    const jwtToken = authState.sessionUser?.accessToken || authState.sessionUser?.access;
+    // Add Bearer token if available from TokenManager
+    const jwtToken = TokenManager.getAccessToken();
     if (jwtToken && !headers['Authorization']) {
       headers['Authorization'] = `Bearer ${jwtToken}`;
     }
@@ -89,6 +96,193 @@ export class SkaftinClient {
     }
 
     return headers;
+  }
+
+  /**
+   * Subscribe to token refresh completion
+   */
+  private subscribeToTokenRefresh(
+    onRefreshed: (token: string) => void,
+    onFailed: (error: Error) => void
+  ): void {
+    this.refreshSubscribers.push(onRefreshed);
+    this.failedRefreshSubscribers.push(onFailed);
+  }
+
+  /**
+   * Notify all subscribers when token is refreshed
+   */
+  private onTokenRefreshed(token: string): void {
+    this.refreshSubscribers.forEach((callback) => callback(token));
+    this.refreshSubscribers = [];
+    this.failedRefreshSubscribers = [];
+  }
+
+  /**
+   * Notify all subscribers when token refresh failed
+   */
+  private onTokenRefreshFailed(error: Error): void {
+    this.failedRefreshSubscribers.forEach((callback) => callback(error));
+    this.refreshSubscribers = [];
+    this.failedRefreshSubscribers = [];
+  }
+
+  /**
+   * Refresh the access token
+   */
+  private async refreshAccessToken(): Promise<string | null> {
+    const currentToken = TokenManager.getAccessToken();
+    
+    if (!currentToken) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(
+        `${this.config.apiUrl}${SKAFTIN_CONFIG.endpoints.sessionRefresh}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentToken}`,
+            'X-API-Key': this.config.apiKey,
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Token refresh failed');
+      }
+
+      const data: RefreshResponse = await response.json();
+
+      if (data.status === 'OK' && data.accessToken) {
+        return data.accessToken;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Handle 401 error with token refresh
+   */
+  private async handle401<T>(
+    endpoint: string,
+    options: RequestInit,
+    isFormData: boolean
+  ): Promise<ApiResponse<T> | null> {
+    // Don't refresh for auth endpoints (login, register, etc.)
+    const isAuthEndpoint = endpoint.includes('/auth/auth/');
+    if (isAuthEndpoint) {
+      return null;
+    }
+
+    // If already refreshing, queue this request
+    if (this.isRefreshing) {
+      return new Promise((resolve, reject) => {
+        this.subscribeToTokenRefresh(
+          async (token: string) => {
+            try {
+              // Retry the request with new token
+              const result = await this.executeRequest<T>(endpoint, options, isFormData, token);
+              resolve(result);
+            } catch (error) {
+              reject(error);
+            }
+          },
+          (error: Error) => {
+            reject(error);
+          }
+        );
+      });
+    }
+
+    this.isRefreshing = true;
+
+    try {
+      const newToken = await this.refreshAccessToken();
+      
+      if (newToken) {
+        TokenManager.setAccessToken(newToken);
+        
+        // Notify all queued requests
+        this.onTokenRefreshed(newToken);
+
+        // Retry original request with new token
+        return await this.executeRequest<T>(endpoint, options, isFormData, newToken);
+      }
+
+      // Refresh failed - dispatch logout event
+      TokenManager.clearAll();
+      this.onTokenRefreshFailed(new Error('Session expired'));
+      
+      // Dispatch event for auth state listeners
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth:logout', { 
+          detail: { reason: 'session_expired' } 
+        }));
+      }
+      
+      return null;
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
+  /**
+   * Execute the actual request
+   */
+  private async executeRequest<T>(
+    endpoint: string,
+    options: RequestInit,
+    isFormData: boolean,
+    overrideToken?: string
+  ): Promise<ApiResponse<T>> {
+    const url = `${this.config.apiUrl}${endpoint}`;
+    const method = options.method || 'GET';
+
+    const headers = this.buildHeaders(
+      (options.headers as Record<string, string>) || {},
+      isFormData
+    );
+
+    // Override token if provided (for retry after refresh)
+    if (overrideToken) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${overrideToken}`;
+    }
+
+    let finalBody: BodyInit | undefined;
+    if (isFormData) {
+      finalBody = options.body as FormData;
+    } else if (options.body) {
+      finalBody = typeof options.body === 'string'
+        ? options.body
+        : JSON.stringify(options.body);
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      method,
+      headers,
+      credentials: 'include',
+      body: finalBody,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const error = new Error(data.message || data.error || `Request failed: ${response.status}`);
+      (error as any).status = response.status;
+      (error as any).data = data;
+      throw error;
+    }
+
+    return data;
   }
 
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
@@ -123,38 +317,17 @@ export class SkaftinClient {
 
       const data = await response.json();
 
-      // Handle 401 Unauthorized - SuperTokens SDK handles refresh automatically
-      // But we can retry the request after a short delay to allow refresh
-      if (response.status === 401 && this.isUserAuthenticated()) {
-        try {
-          // Check if SuperTokens session exists (it will auto-refresh)
-          const Session = (await import('supertokens-auth-react/recipe/session')).default;
-          const sessionExists = await Session.doesSessionExist();
-
-          if (sessionExists) {
-            // Wait a bit for SuperTokens to refresh the token
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Retry the original request (SuperTokens will have refreshed the token)
-            const retryResponse = await fetch(url, {
-              ...options,
-              method,
-              headers: this.buildHeaders(
-                (options.headers as Record<string, string>) || {},
-                isFormData
-              ),
-              credentials: 'include',
-              body: finalBody,
-            });
-
-            const retryData = await retryResponse.json();
-            if (retryResponse.ok) {
-              return retryData;
-            }
-          }
-        } catch (refreshError) {
-          console.error('Failed to refresh session:', refreshError);
+      // Handle 401 Unauthorized with token refresh
+      if (response.status === 401) {
+        const retryResult = await this.handle401<T>(endpoint, options, isFormData);
+        if (retryResult) {
+          return retryResult;
         }
+        // If handle401 returned null, throw the original error
+        const error = new Error(data.message || data.error || 'Unauthorized');
+        (error as any).status = 401;
+        (error as any).data = data;
+        throw error;
       }
 
       if (!response.ok) {
@@ -171,11 +344,6 @@ export class SkaftinClient {
       }
       throw error;
     }
-  }
-
-  private isUserAuthenticated(): boolean {
-    const authState = useAuthStore.getState();
-    return !!authState.sessionUser?.accessToken;
   }
 
   async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
@@ -223,4 +391,3 @@ export class SkaftinClient {
 
 export const skaftinClient = new SkaftinClient();
 export default skaftinClient;
-

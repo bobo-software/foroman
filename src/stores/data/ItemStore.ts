@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import ItemService from '../../services/itemService';
-import { useCompanyStore } from './CompanyStore';
+import { useBusinessStore } from './BusinessStore';
 import type { Item } from '../../types/item';
 
 interface ItemState {
@@ -17,8 +17,8 @@ export const useItemStore = create<ItemState>((set, get) => ({
   error: null,
 
   fetchItems: async () => {
-    const companyId = useCompanyStore.getState().currentCompany?.id;
-    const where = companyId != null ? { company_id: companyId } : undefined;
+    const businessId = useBusinessStore.getState().currentBusiness?.id;
+    const where = businessId != null ? { business_id: businessId } : undefined;
     set({ loading: true, error: null });
     try {
       const data = await ItemService.findAll({

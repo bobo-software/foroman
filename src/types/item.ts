@@ -4,7 +4,7 @@
 
 export interface Item {
   id?: number;
-  company_id?: number;
+  business_id?: number;
   name: string;
   sku?: string;
   description?: string;
@@ -19,7 +19,7 @@ export interface Item {
 }
 
 export interface CreateItemDto {
-  company_id?: number;
+  business_id?: number;
   name: string;
   sku?: string;
   description?: string;

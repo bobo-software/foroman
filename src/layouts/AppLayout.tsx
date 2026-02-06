@@ -2,20 +2,20 @@ import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { AppSidebar, AppNavbar } from '../components/ComponentsIndex';
 import useAuthStore from '../stores/data/AuthStore';
-import { useCompanyStore } from '../stores/data/CompanyStore';
+import { useBusinessStore } from '../stores/data/BusinessStore';
 import useThemeStore from '../stores/state/ThemeStore';
 
 export function AppLayout() {
   const sessionUser = useAuthStore((s) => s.sessionUser);
-  const fetchUserCompanies = useCompanyStore((s) => s.fetchUserCompanies);
+  const fetchUserBusinesses = useBusinessStore((s) => s.fetchUserBusinesses);
   const theme = useThemeStore((s) => s.theme);
   const isDark = theme === 'dark';
 
   useEffect(() => {
     if (sessionUser?.id != null) {
-      fetchUserCompanies(Number(sessionUser.id));
+      fetchUserBusinesses(Number(sessionUser.id));
     }
-  }, [sessionUser?.id, fetchUserCompanies]);
+  }, [sessionUser?.id, fetchUserBusinesses]);
 
   return (
     <div

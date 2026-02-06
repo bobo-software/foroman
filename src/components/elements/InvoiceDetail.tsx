@@ -5,6 +5,7 @@ import InvoiceService from '../../services/invoiceService';
 import InvoiceItemService from '../../services/invoiceItemService';
 import { formatCurrency } from '../../utils/currency';
 import { generateInvoicePdf } from '../../utils/invoicePdf';
+import { useBusinessStore } from '../../stores/data/BusinessStore';
 
 interface InvoiceDetailProps {
   invoiceId: number;
@@ -17,6 +18,7 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
   const [lineItems, setLineItems] = useState<InvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const business = useBusinessStore((s) => s.currentBusiness);
 
   useEffect(() => {
     loadInvoice();
@@ -41,8 +43,8 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
 
   const handleDownloadPdf = useCallback(async () => {
     if (!invoice) return;
-    await generateInvoicePdf(invoice, lineItems);
-  }, [invoice, lineItems]);
+    await generateInvoicePdf(invoice, lineItems, business);
+  }, [invoice, lineItems, business]);
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this invoice?')) return;
@@ -100,11 +102,19 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
 
   return (
     <div className="max-w-[900px] mx-auto p-4 md:p-8">
+      {/* Header with actions */}
       <div className="flex flex-col gap-4 mb-8 pb-6 border-b-2 border-gray-200 dark:border-gray-700 md:flex-row md:justify-between md:items-start">
         <div>
-          <h1 className="m-0 mb-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-            Invoice {invoice.invoice_number}
-          </h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="m-0 text-2xl font-semibold text-gray-900 dark:text-gray-100">
+              Invoice {invoice.invoice_number}
+            </h1>
+            {invoice.order_number && (
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                (Order: {invoice.order_number})
+              </span>
+            )}
+          </div>
           <span
             className={`inline-block px-4 py-1.5 rounded-full text-sm font-medium capitalize ${getStatusBadgeClass(invoice.status)}`}
           >
@@ -140,45 +150,92 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
       </div>
 
       <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+        {/* Company & Delivery Info - Two columns */}
         <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">
-            Customer Information
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Bill To */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
-                Customer Name
-              </label>
-              <p className="m-0 text-base text-gray-800 dark:text-gray-200">{invoice.customer_name}</p>
+              <h2 className="mb-4 text-lg font-semibold text-gray-800 dark:text-gray-200">
+                Bill To
+              </h2>
+              <div className="space-y-3">
+                <div>
+                  <p className="m-0 text-base font-medium text-gray-800 dark:text-gray-200">
+                    {invoice.customer_name}
+                  </p>
+                </div>
+                {invoice.customer_vat_number && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
+                      VAT Number
+                    </label>
+                    <p className="m-0 text-sm text-gray-700 dark:text-gray-300">
+                      {invoice.customer_vat_number}
+                    </p>
+                  </div>
+                )}
+                {invoice.customer_address && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
+                      Address
+                    </label>
+                    <p className="m-0 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                      {invoice.customer_address}
+                    </p>
+                  </div>
+                )}
+                {invoice.customer_email && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
+                      Email
+                    </label>
+                    <p className="m-0 text-sm text-gray-700 dark:text-gray-300">
+                      {invoice.customer_email}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-            {invoice.customer_email && (
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
-                  Email
-                </label>
-                <p className="m-0 text-base text-gray-800 dark:text-gray-200">
-                  {invoice.customer_email}
-                </p>
+
+            {/* Deliver To */}
+            <div>
+              <h2 className="mb-4 text-lg font-semibold text-gray-800 dark:text-gray-200">
+                Deliver To
+              </h2>
+              <div className="space-y-3">
+                {invoice.delivery_address ? (
+                  <p className="m-0 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                    {invoice.delivery_address}
+                  </p>
+                ) : (
+                  <p className="m-0 text-sm text-gray-500 dark:text-gray-400 italic">
+                    Same as billing address
+                  </p>
+                )}
+                {invoice.delivery_conditions && (
+                  <div className="mt-3">
+                    <span
+                      className={`inline-block px-3 py-1 rounded-full text-xs font-semibold uppercase ${
+                        invoice.delivery_conditions === 'collect'
+                          ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                      }`}
+                    >
+                      {invoice.delivery_conditions}
+                    </span>
+                  </div>
+                )}
               </div>
-            )}
-            {invoice.customer_address && (
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
-                  Address
-                </label>
-                <p className="m-0 text-base text-gray-800 dark:text-gray-200">
-                  {invoice.customer_address}
-                </p>
-              </div>
-            )}
+            </div>
           </div>
         </div>
 
+        {/* Invoice Details - Dates & Terms */}
         <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">
+          <h2 className="mb-4 text-lg font-semibold text-gray-800 dark:text-gray-200">
             Invoice Details
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
                 Issue Date
@@ -195,58 +252,87 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
                 {formatDate(invoice.due_date)}
               </p>
             </div>
+            {invoice.terms && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
+                  Terms
+                </label>
+                <p className="m-0 text-base text-gray-800 dark:text-gray-200">{invoice.terms}</p>
+              </div>
+            )}
+            {invoice.order_number && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">
+                  Order Number
+                </label>
+                <p className="m-0 text-base text-gray-800 dark:text-gray-200">
+                  {invoice.order_number}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
+        {/* Invoice Items with SKU */}
         <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">
+          <h2 className="mb-4 text-lg font-semibold text-gray-800 dark:text-gray-200">
             Invoice Items
           </h2>
           {lineItems.length > 0 ? (
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr>
-                  <th className="px-3 py-2 text-left border-b border-gray-200 dark:border-gray-600 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
-                    Description
-                  </th>
-                  <th className="px-3 py-2 text-right border-b border-gray-200 dark:border-gray-600 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
-                    Qty
-                  </th>
-                  <th className="px-3 py-2 text-right border-b border-gray-200 dark:border-gray-600 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
-                    Unit Price
-                  </th>
-                  <th className="px-3 py-2 text-right border-b border-gray-200 dark:border-gray-600 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
-                    Line Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {lineItems.map((item) => {
-                  const qty = Number(item.quantity) || 0;
-                  const unitPrice = Number(item.unit_price) || 0;
-                  const lineTotal = Number(item.total) ?? qty * unitPrice;
-                  return (
-                    <tr
-                      key={item.id ?? `${item.description}-${qty}`}
-                      className="border-b border-gray-200 dark:border-gray-600"
-                    >
-                      <td className="px-3 py-2 text-gray-800 dark:text-gray-200">
-                        {item.description}
-                      </td>
-                      <td className="px-3 py-2 text-right text-gray-800 dark:text-gray-200">
-                        {qty}
-                      </td>
-                      <td className="px-3 py-2 text-right text-gray-800 dark:text-gray-200">
-                        {formatCurrency(unitPrice, invoice.currency)}
-                      </td>
-                      <td className="px-3 py-2 text-right text-gray-800 dark:text-gray-200">
-                        {formatCurrency(lineTotal, invoice.currency)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th className="px-3 py-2 text-left border-b border-gray-200 dark:border-gray-600 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
+                      SKU
+                    </th>
+                    <th className="px-3 py-2 text-left border-b border-gray-200 dark:border-gray-600 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
+                      Description
+                    </th>
+                    <th className="px-3 py-2 text-right border-b border-gray-200 dark:border-gray-600 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
+                      Qty
+                    </th>
+                    <th className="px-3 py-2 text-right border-b border-gray-200 dark:border-gray-600 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
+                      Unit Price
+                    </th>
+                    <th className="px-3 py-2 text-right border-b border-gray-200 dark:border-gray-600 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
+                      Line Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lineItems.map((item, idx) => {
+                    const qty = Number(item.quantity) || 0;
+                    const unitPrice = Number(item.unit_price) || 0;
+                    const lineTotal = Number(item.total) ?? qty * unitPrice;
+                    return (
+                      <tr
+                        key={item.id ?? `${item.description}-${qty}`}
+                        className={`border-b border-gray-200 dark:border-gray-600 ${
+                          idx % 2 === 1 ? 'bg-gray-50 dark:bg-gray-700/30' : ''
+                        }`}
+                      >
+                        <td className="px-3 py-2 text-gray-600 dark:text-gray-400 font-mono text-xs">
+                          {item.sku || '—'}
+                        </td>
+                        <td className="px-3 py-2 text-gray-800 dark:text-gray-200">
+                          {item.description}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-800 dark:text-gray-200">
+                          {qty}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-800 dark:text-gray-200">
+                          {formatCurrency(unitPrice, invoice.currency)}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-800 dark:text-gray-200 font-medium">
+                          {formatCurrency(lineTotal, invoice.currency)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <p className="m-0 p-4 text-gray-500 dark:text-gray-400 text-sm bg-gray-50 dark:bg-gray-700/50 rounded-lg">
               No line items on this invoice.
@@ -254,35 +340,59 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
           )}
         </div>
 
+        {/* Banking Details & Totals - Two columns */}
         <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">
-            Calculations
-          </h2>
-          <div className="max-w-md ml-auto space-y-0">
-            <div className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-600 text-base text-gray-800 dark:text-gray-200">
-              <span>Subtotal</span>
-              <span>{formatCurrency(subtotal, invoice.currency)}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Banking Details */}
+            <div>
+              {business?.banking_details && (
+                <>
+                  <h2 className="mb-4 text-lg font-semibold text-gray-800 dark:text-gray-200">
+                    Banking Details
+                  </h2>
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                    <p className="m-0 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                      {business.banking_details}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
-            <div className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-600 text-base text-gray-800 dark:text-gray-200">
-              <span>VAT ({vatRate}%)</span>
-              <span>{formatCurrency(vatAmount, invoice.currency)}</span>
-            </div>
-            <div className="flex justify-between py-4 mt-2 pt-4 border-t-2 border-gray-800 dark:border-gray-300 text-xl font-semibold text-gray-900 dark:text-gray-100">
-              <span>Total</span>
-              <span>{formatCurrency(total, invoice.currency)}</span>
+
+            {/* Totals */}
+            <div>
+              <h2 className="mb-4 text-lg font-semibold text-gray-800 dark:text-gray-200">
+                Totals
+              </h2>
+              <div className="space-y-0">
+                <div className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-600 text-base text-gray-800 dark:text-gray-200">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(subtotal, invoice.currency)}</span>
+                </div>
+                <div className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-600 text-base text-gray-800 dark:text-gray-200">
+                  <span>VAT ({vatRate}%)</span>
+                  <span>{formatCurrency(vatAmount, invoice.currency)}</span>
+                </div>
+                <div className="flex justify-between py-4 mt-2 pt-4 border-t-2 border-gray-800 dark:border-gray-300 text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  <span>Total</span>
+                  <span>{formatCurrency(total, invoice.currency)}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
+        {/* Notes */}
         {invoice.notes && (
           <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-200">Notes</h2>
+            <h2 className="mb-4 text-lg font-semibold text-gray-800 dark:text-gray-200">Notes</h2>
             <p className="m-0 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
               {invoice.notes}
             </p>
           </div>
         )}
 
+        {/* Footer timestamps */}
         {invoice.created_at && (
           <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 text-right">
             <p className="m-0 text-sm text-gray-400 dark:text-gray-500">

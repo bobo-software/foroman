@@ -4,11 +4,16 @@
 
 export interface Quotation {
   id?: number;
-  company_id?: number | null;
+  business_id?: number | null;
   quotation_number: string;
   customer_name: string;
   customer_email?: string;
   customer_address?: string;
+  customer_vat_number?: string;
+  delivery_address?: string;
+  delivery_conditions?: 'collect' | 'deliver' | string;
+  order_number?: string;
+  terms?: string;
   issue_date: string;
   valid_until?: string;
   status: QuotationStatus;
@@ -29,6 +34,7 @@ export interface QuotationLine {
   id?: number;
   quotation_id?: number;
   item_id?: number;
+  sku?: string;
   description: string;
   quantity: number;
   unit_price: number;
@@ -36,11 +42,16 @@ export interface QuotationLine {
 }
 
 export interface CreateQuotationDto {
-  company_id?: number | null;
+  business_id?: number | null;
   quotation_number: string;
   customer_name: string;
   customer_email?: string;
   customer_address?: string;
+  customer_vat_number?: string;
+  delivery_address?: string;
+  delivery_conditions?: string;
+  order_number?: string;
+  terms?: string;
   issue_date: string;
   valid_until?: string;
   status: QuotationStatus;

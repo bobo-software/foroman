@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ItemService from '@/services/itemService';
-import { useCompanyStore } from '@/stores/data/CompanyStore';
+import { useBusinessStore } from '@/stores/data/BusinessStore';
 import type { CreateItemDto } from '@/types/item';
 import toast from 'react-hot-toast';
 
@@ -18,7 +18,7 @@ const initial: CreateItemDto = {
 export function ItemFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const companyId = useCompanyStore((s) => s.currentCompany?.id);
+  const businessId = useBusinessStore((s) => s.currentBusiness?.id);
   const isEdit = Boolean(id);
   const [form, setForm] = useState<CreateItemDto>(initial);
   const [saving, setSaving] = useState(false);
@@ -68,7 +68,7 @@ export function ItemFormPage() {
     try {
       const quantity = form.quantity != null ? Number(form.quantity) : 0;
       const payload = {
-        ...(companyId != null && { company_id: companyId }),
+        ...(businessId != null && { business_id: businessId }),
         name: form.name.trim(),
         sku: form.sku?.trim() || undefined,
         description: form.description?.trim() || undefined,
@@ -93,7 +93,7 @@ export function ItemFormPage() {
     }
   };
 
-  const hasNoCompany = !isEdit && companyId == null;
+  const hasNoBusiness = !isEdit && businessId == null;
 
   if (loading) {
     return <div className="text-slate-500">Loading…</div>;
@@ -110,11 +110,11 @@ export function ItemFormPage() {
           ← Back to stock
         </Link>
       </div>
-      {hasNoCompany && (
+      {hasNoBusiness && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Add your company first before creating items.{' '}
+          Add your business first before creating items.{' '}
           <Link to="/onboard" className="font-medium text-amber-900 underline hover:no-underline">
-            Add company
+            Add business
           </Link>
         </div>
       )}
@@ -206,7 +206,7 @@ export function ItemFormPage() {
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            disabled={saving || hasNoCompany}
+            disabled={saving || hasNoBusiness}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
           >
             {saving ? 'Saving…' : isEdit ? 'Update item' : 'Create item'}

@@ -4,11 +4,16 @@
 
 export interface Invoice {
   id?: number;
-  company_id?: number | null;
+  business_id?: number | null;
   invoice_number: string;
   customer_name: string;
   customer_email?: string;
   customer_address?: string;
+  customer_vat_number?: string;
+  delivery_address?: string;
+  delivery_conditions?: 'collect' | 'deliver' | string;
+  order_number?: string;
+  terms?: string;
   issue_date: string;
   due_date: string;
   status: InvoiceStatus;
@@ -28,6 +33,7 @@ export interface InvoiceItem {
   id?: number;
   invoice_id?: number;
   item_id?: number;
+  sku?: string;
   description: string;
   quantity: number;
   unit_price: number;
@@ -35,11 +41,16 @@ export interface InvoiceItem {
 }
 
 export interface CreateInvoiceDto {
-  company_id?: number | null;
+  business_id?: number | null;
   invoice_number: string;
   customer_name: string;
   customer_email?: string;
   customer_address?: string;
+  customer_vat_number?: string;
+  delivery_address?: string;
+  delivery_conditions?: string;
+  order_number?: string;
+  terms?: string;
   issue_date: string;
   due_date: string;
   status: InvoiceStatus;

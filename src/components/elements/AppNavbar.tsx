@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import useAuthStore from '../../stores/data/AuthStore';
 import useThemeStore from '../../stores/state/ThemeStore';
 import AppProfileComponent from './AppProfileComponent';
+import { ConnectionDot } from './ConnectionStatus';
 
 function useBreadcrumbs() {
   const location = useLocation();
@@ -22,13 +23,13 @@ function useBreadcrumbs() {
     const label =
       segment === 'dashboard' ? 'Dashboard' :
       segment === 'invoices' ? 'Invoices' :
-      segment === 'customers' ? 'Customers' :
+      segment === 'companies' ? 'Companies' :
       segment === 'items' ? 'Stock' :
       segment === 'quotations' ? 'Quotations' :
       segment === 'payments' ? 'Payments' :
       segment === 'statements' ? 'Statements' :
       segment === 'settings' ? 'Settings' :
-      segment === 'company' ? 'Company' :
+      segment === 'business' ? 'Business' :
       segment === 'profile' ? 'Profile' :
       segment === 'preferences' ? 'Preferences' :
       segment === 'create' ? 'New' :
@@ -41,7 +42,7 @@ function useBreadcrumbs() {
   return crumbs;
 }
 
-export function AppNavbar() {
+const AppNavbar = () => {
   const sessionUser = useAuthStore((s) => s.sessionUser);
   const theme = useThemeStore((s) => s.theme);
   const breadcrumbs = useBreadcrumbs();
@@ -97,8 +98,11 @@ export function AppNavbar() {
             aria-label="Search"
           />
         </div>
+        <ConnectionDot className="shrink-0" />
         <AppProfileComponent />
       </div>
     </header>
   );
 }
+
+export default AppNavbar;

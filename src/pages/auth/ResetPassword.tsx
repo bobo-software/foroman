@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { LuEye, LuEyeOff } from 'react-icons/lu';
 import { authService } from '../../services/authService';
+import useAuthStore from '../../stores/data/AuthStore';
 
 export function ResetPassword() {
   const navigate = useNavigate();
@@ -10,27 +11,41 @@ export function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [localError, setLocalError] = useState('');
+
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const error = useAuthStore((s) => s.error);
+  const clearError = useAuthStore((s) => s.clearError);
 
   const resetToken = sessionStorage.getItem('reset_token');
   const email = sessionStorage.getItem('reset_email');
 
+  // Clear error on unmount
+  useEffect(() => {
+    return () => {
+      clearError();
+    };
+  }, [clearError]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLocalError('');
+    clearError();
+    
     if (!resetToken || !email) {
       toast.error('Session expired. Please start over.');
       navigate('/forgot-password', { replace: true });
       return;
     }
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters');
+      setLocalError('Password must be at least 8 characters');
       return;
     }
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
+      setLocalError('Passwords do not match');
       return;
     }
-    setLoading(true);
+    
     try {
       await authService.resetPasswordWithToken(email, resetToken, password);
       sessionStorage.removeItem('reset_token');
@@ -40,8 +55,6 @@ export function ResetPassword() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to reset password';
       toast.error(message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -74,6 +87,8 @@ export function ResetPassword() {
     );
   }
 
+  const displayError = localError || error;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 px-4">
       <div className="w-full max-w-sm space-y-8">
@@ -94,6 +109,12 @@ export function ResetPassword() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {displayError && (
+            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
+              <p className="text-sm text-red-700 dark:text-red-400">{displayError}</p>
+            </div>
+          )}
+
           <div>
             <label
               htmlFor="password"
@@ -108,21 +129,19 @@ export function ResetPassword() {
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
                 minLength={8}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 pr-10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 pr-10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((p) => !p)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                disabled={isLoading}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-50"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                {showPassword ? (
-                  <LuEyeOff size={20} />
-                ) : (
-                  <LuEye size={20} />
-                )}
+                {showPassword ? <LuEyeOff size={20} /> : <LuEye size={20} />}
               </button>
             </div>
           </div>
@@ -141,31 +160,36 @@ export function ResetPassword() {
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isLoading}
                 minLength={8}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 pr-10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 pr-10 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirm((p) => !p)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                disabled={isLoading}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-50"
                 aria-label={showConfirm ? 'Hide password' : 'Show password'}
               >
-                {showConfirm ? (
-                  <LuEyeOff size={20} />
-                ) : (
-                  <LuEye size={20} />
-                )}
+                {showConfirm ? <LuEyeOff size={20} /> : <LuEye size={20} />}
               </button>
             </div>
           </div>
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            disabled={isLoading}
+            className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
           >
-            {loading ? 'Resetting…' : 'Reset password'}
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />
+                Resetting…
+              </>
+            ) : (
+              'Reset password'
+            )}
           </button>
         </form>
 

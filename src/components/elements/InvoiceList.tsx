@@ -5,6 +5,7 @@ import { Box, IconButton, Tooltip } from '@mui/material';
 import { LuFileDown, LuFilter } from 'react-icons/lu';
 import type { Invoice } from '../../types/invoice';
 import { useInvoiceStore } from '../../stores/data/InvoiceStore';
+import { useAutoRefresh, useProjectId } from '../../hooks';
 import MRTThemeProvider from '../providers/MRTThemeProvider';
 import { formatCurrency } from '../../utils/currency';
 import { downloadInvoicePdfById } from '../../utils/invoicePdf';
@@ -16,12 +17,16 @@ function formatDate(dateString: string) {
 export function InvoiceList() {
   const navigate = useNavigate();
   const { invoices, loading, error, fetchInvoices } = useInvoiceStore();
+  const projectId = useProjectId();
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     fetchInvoices({ status: filterStatus });
   }, [fetchInvoices, filterStatus]);
+
+  // Auto-refresh when invoices table changes (real-time updates)
+  useAutoRefresh(projectId, 'invoices', () => fetchInvoices({ status: filterStatus }));
 
   const filteredInvoices = useMemo(() => {
     if (!search.trim()) return invoices;
@@ -47,7 +52,7 @@ export function InvoiceList() {
   const columns = useMemo<MRT_ColumnDef<Invoice>[]>(
     () => [
       { accessorKey: 'invoice_number', header: 'Invoice #', enableColumnFilter: true },
-      { accessorKey: 'customer_name', header: 'Customer', enableColumnFilter: true },
+      { accessorKey: 'customer_name', header: 'Company', enableColumnFilter: true },
       {
         accessorKey: 'issue_date',
         header: 'Issue Date',
