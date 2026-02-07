@@ -78,6 +78,16 @@ export class ContactService {
     return response.data;
   }
 
+  static async deleteByCompanyId(companyId: number): Promise<{ rowCount: number }> {
+    const response = await skaftinClient.delete<{ rowCount: number }>(
+      `/app-api/database/tables/${TABLE_NAME}/delete`,
+      {
+        where: { company_id: companyId },
+      }
+    );
+    return response.data;
+  }
+
   static async setPrimary(id: number, companyId: number): Promise<void> {
     // First, unset any existing primary contacts for this company
     const existingPrimary = await this.findAll({

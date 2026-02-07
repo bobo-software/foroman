@@ -12,6 +12,7 @@ import { formatCurrency, SUPPORTED_CURRENCIES } from '../../utils/currency';
 
 interface QuotationFormProps {
   quotationId?: number;
+  initialCompanyId?: number;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -31,7 +32,7 @@ function lineTotal(row: LineRow): number {
   return beforeDiscount * (1 - row.discountPercent / 100);
 }
 
-export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFormProps) {
+export function QuotationForm({ quotationId, initialCompanyId, onSuccess, onCancel }: QuotationFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -39,6 +40,7 @@ export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFor
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [lineRows, setLineRows] = useState<LineRow[]>([]);
   const [globalDiscountPercent, setGlobalDiscountPercent] = useState(0);
+  const [initialCompanyApplied, setInitialCompanyApplied] = useState(false);
 
   const [formData, setFormData] = useState<CreateQuotationDto>({
     quotation_number: '',
@@ -69,6 +71,24 @@ export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFor
       }
     );
   }, []);
+
+  // Pre-select company if initialCompanyId is provided
+  useEffect(() => {
+    if (initialCompanyId && companies.length > 0 && !initialCompanyApplied && !quotationId) {
+      const company = companies.find((c) => c.id === initialCompanyId);
+      if (company) {
+        setSelectedCompany(company);
+        setFormData((prev) => ({
+          ...prev,
+          customer_name: company.name,
+          customer_email: company.email ?? '',
+          customer_address: company.address ?? '',
+          customer_vat_number: company.vat_number ?? '',
+        }));
+        setInitialCompanyApplied(true);
+      }
+    }
+  }, [initialCompanyId, companies, initialCompanyApplied, quotationId]);
 
   useEffect(() => {
     if (!quotationId) {

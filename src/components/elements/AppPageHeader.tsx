@@ -29,30 +29,30 @@ const AppPageHeader: React.FC<AppPageHeaderProps> = ({
   backButtonText = 'Back'
 }) => {
   return (
-    <div className="flex items-center justify-between bg-white rounded-lg p-6 shadow-sm">
+    <div className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-lg p-6 shadow-sm dark:shadow-slate-900/20">
       <div className="flex items-center gap-4">
         {showBackButton && (
           <>
             <button
               onClick={onBackClick}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors duration-200"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors duration-200"
             >
               <LuArrowLeft size={18} />
               {backButtonText}
             </button>
-            <div className="h-6 w-px bg-slate-200" />
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
           </>
         )}
-        {icon && <div className="p-3 bg-blue-50 rounded-lg">{icon}</div>}
+        {icon && <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">{icon}</div>}
         <div>
-          <h1 className="text-2xl font-semibold text-slate-800">{title}</h1>
-          {subtitle && <p className="text-sm text-slate-500 mt-1">{subtitle}</p>}
+          <h1 className="text-2xl font-semibold text-slate-800 dark:text-slate-100">{title}</h1>
+          {subtitle && <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{subtitle}</p>}
         </div>
       </div>
       {showButton && (
         <button
           onClick={onButtonClick}
-          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 ${buttonClassName}`}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg transition-colors duration-200 ${buttonClassName}`}
         >
           {buttonIcon}
           {buttonText}

@@ -54,7 +54,8 @@ const AppSidebar = () => {
         <p className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
           Settings
         </p>
-        {navLink('/app/settings/business', 'Business')}
+        {navLink('/app/settings', 'Business')}
+        {navLink('/app/settings/banking', 'Banking')}
         {navLink('/app/settings/preferences', 'Preferences')}
       </div>
     </aside>

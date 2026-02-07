@@ -30,10 +30,8 @@ import { QuotationFormPage } from '@pages/admin/QuotationFormPage';
 import { StatementsPage } from '@pages/admin/StatementsPage';
 import { PaymentsPage } from '@pages/admin/PaymentsPage';
 import { PaymentFormPage } from '@pages/admin/PaymentFormPage';
-import { SettingsPage } from '@pages/admin/SettingsPage';
-import { ProfileSettingsPage } from '@pages/admin/settings/ProfileSettingsPage';
-import { BusinessSettingsPage } from '@pages/admin/settings/BusinessSettingsPage';
-import { PreferencesSettingsPage } from '@pages/admin/settings/PreferencesSettingsPage';
+import { SettingsPage } from '@/pages/admin/settings/SettingsPage';
+import { BusinessSettingsTab, BankingSettingsTab, PreferencesSettingsTab } from '@pages/admin/settings/tabs';
 import './App.css';
 import { AppLayout } from './layouts/AppLayout';
 
@@ -137,9 +135,9 @@ function App() {
           </Route>
           <Route path="statements" element={<StatementsPage />} />
           <Route path="settings" element={<SettingsPage />}>
-            <Route index element={<ProfileSettingsPage />} />
-            <Route path="business" element={<BusinessSettingsPage />} />
-            <Route path="preferences" element={<PreferencesSettingsPage />} />
+            <Route index element={<BusinessSettingsTab />} />
+            <Route path="banking" element={<BankingSettingsTab />} />
+            <Route path="preferences" element={<PreferencesSettingsTab />} />
           </Route>
         </Route>
         

@@ -1,11 +1,35 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { LuTrash2 } from 'react-icons/lu';
 import CompanyService from '@/services/companyService';
+import ContactService from '@/services/contactService';
+import AddressService from '@/services/addressService';
+import BankingDetailsService from '@/services/bankingDetailsService';
 import type { Company, CreateCompanyDto } from '@/types/company';
+import type { Address, CreateAddressDto } from '@/types/address';
+import type { BankingDetails, CreateBankingDetailsDto } from '@/types/bankingDetails';
+import { SA_BANKS, ACCOUNT_TYPES } from '@/types/bankingDetails';
+import { DeleteConfirmationModal } from '@/components/ComponentsIndex';
+import type { ConfirmationMode } from '@/components/modals/DeleteConfirmationModal';
 import toast from 'react-hot-toast';
+
+const SA_PROVINCES = [
+  { value: '', label: 'Select province…' },
+  { value: 'Eastern Cape', label: 'Eastern Cape' },
+  { value: 'Free State', label: 'Free State' },
+  { value: 'Gauteng', label: 'Gauteng' },
+  { value: 'KwaZulu-Natal', label: 'KwaZulu-Natal' },
+  { value: 'Limpopo', label: 'Limpopo' },
+  { value: 'Mpumalanga', label: 'Mpumalanga' },
+  { value: 'Northern Cape', label: 'Northern Cape' },
+  { value: 'North West', label: 'North West' },
+  { value: 'Western Cape', label: 'Western Cape' },
+];
 
 interface CompanyEditTabProps {
   company: Company;
   onCompanyUpdate?: (company: Company) => void;
+  onCompanyDelete?: () => void;
 }
 
 const BUSINESS_TYPES = [
@@ -17,7 +41,8 @@ const BUSINESS_TYPES = [
   { value: 'other', label: 'Other' },
 ];
 
-export function CompanyEditTab({ company, onCompanyUpdate }: CompanyEditTabProps) {
+export function CompanyEditTab({ company, onCompanyUpdate, onCompanyDelete }: CompanyEditTabProps) {
+  const navigate = useNavigate();
   const [form, setForm] = useState<CreateCompanyDto>({
     name: company.name,
     email: company.email ?? '',
@@ -34,8 +59,121 @@ export function CompanyEditTab({ company, onCompanyUpdate }: CompanyEditTabProps
   });
   const [saving, setSaving] = useState(false);
 
+  // Address state
+  const [existingAddress, setExistingAddress] = useState<Address | null>(null);
+  const [addressForm, setAddressForm] = useState<CreateAddressDto>({
+    company_id: company.id,
+    label: 'Primary',
+    street_address: '',
+    street_address_2: '',
+    suburb: '',
+    town: '',
+    city: '',
+    province: '',
+    country: 'South Africa',
+    postal_code: '',
+    is_primary: true,
+    address_type: 'physical',
+  });
+
+  // Banking details state
+  const [existingBankingDetails, setExistingBankingDetails] = useState<BankingDetails | null>(null);
+  const [bankingForm, setBankingForm] = useState<CreateBankingDetailsDto>({
+    company_id: company.id,
+    label: 'Primary Account',
+    bank_name: '',
+    account_holder: '',
+    account_number: '',
+    account_type: 'cheque',
+    branch_code: '',
+    branch_name: '',
+    swift_code: '',
+    is_primary: true,
+    is_active: true,
+  });
+
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmationMode, setDeleteConfirmationMode] = useState<ConfirmationMode>('button');
+  const [deleting, setDeleting] = useState(false);
+  const [relatedDataCount, setRelatedDataCount] = useState<{ contacts: number }>({ contacts: 0 });
+
+  // Fetch existing address, banking details, and related data counts
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!company.id) return;
+      try {
+        // Fetch contacts count
+        const contacts = await ContactService.findByCompanyId(company.id);
+        setRelatedDataCount({ contacts: contacts.length });
+
+        // Fetch existing address
+        const addresses = await AddressService.findByCompanyId(company.id);
+        if (addresses.length > 0) {
+          const primaryAddress = addresses.find(a => a.is_primary) || addresses[0];
+          setExistingAddress(primaryAddress);
+          setAddressForm({
+            company_id: company.id,
+            label: primaryAddress.label ?? 'Primary',
+            street_address: primaryAddress.street_address ?? '',
+            street_address_2: primaryAddress.street_address_2 ?? '',
+            suburb: primaryAddress.suburb ?? '',
+            town: primaryAddress.town ?? '',
+            city: primaryAddress.city ?? '',
+            province: primaryAddress.province ?? '',
+            country: primaryAddress.country ?? 'South Africa',
+            postal_code: primaryAddress.postal_code ?? '',
+            is_primary: primaryAddress.is_primary ?? true,
+            address_type: primaryAddress.address_type ?? 'physical',
+          });
+        }
+
+        // Fetch existing banking details
+        const bankingDetails = await BankingDetailsService.findByCompanyId(company.id);
+        if (bankingDetails.length > 0) {
+          const primaryBanking = bankingDetails.find(b => b.is_primary) || bankingDetails[0];
+          setExistingBankingDetails(primaryBanking);
+          setBankingForm({
+            company_id: company.id,
+            label: primaryBanking.label ?? 'Primary Account',
+            bank_name: primaryBanking.bank_name ?? '',
+            account_holder: primaryBanking.account_holder ?? '',
+            account_number: primaryBanking.account_number ?? '',
+            account_type: primaryBanking.account_type ?? 'cheque',
+            branch_code: primaryBanking.branch_code ?? '',
+            branch_name: primaryBanking.branch_name ?? '',
+            swift_code: primaryBanking.swift_code ?? '',
+            is_primary: primaryBanking.is_primary ?? true,
+            is_active: primaryBanking.is_active ?? true,
+          });
+        }
+      } catch {
+        // Silently fail - we'll still allow operations
+      }
+    };
+    fetchData();
+  }, [company.id]);
+
   const handleChange = useCallback((field: keyof CreateCompanyDto, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleAddressChange = useCallback((field: keyof CreateAddressDto, value: string | boolean) => {
+    setAddressForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleBankingChange = useCallback((field: keyof CreateBankingDetailsDto, value: string | boolean) => {
+    setBankingForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  // Auto-fill branch code when bank is selected
+  const handleBankSelect = useCallback((bankName: string) => {
+    const selectedBank = SA_BANKS.find(b => b.name === bankName);
+    setBankingForm((prev) => ({
+      ...prev,
+      bank_name: bankName,
+      branch_code: selectedBank?.branchCode ?? prev.branch_code,
+    }));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,6 +184,7 @@ export function CompanyEditTab({ company, onCompanyUpdate }: CompanyEditTabProps
     }
     setSaving(true);
     try {
+      // Update company details
       await CompanyService.update(company.id!, {
         name: form.name.trim(),
         email: form.email?.trim() || undefined,
@@ -60,6 +199,67 @@ export function CompanyEditTab({ company, onCompanyUpdate }: CompanyEditTabProps
         website: form.website?.trim() || undefined,
         notes: form.notes?.trim() || undefined,
       });
+
+      // Save address (create or update)
+      const addressData: CreateAddressDto = {
+        company_id: company.id,
+        label: addressForm.label?.trim() || 'Primary',
+        street_address: addressForm.street_address?.trim() || undefined,
+        street_address_2: addressForm.street_address_2?.trim() || undefined,
+        suburb: addressForm.suburb?.trim() || undefined,
+        town: addressForm.town?.trim() || undefined,
+        city: addressForm.city?.trim() || undefined,
+        province: addressForm.province || undefined,
+        country: addressForm.country?.trim() || 'South Africa',
+        postal_code: addressForm.postal_code?.trim() || undefined,
+        is_primary: true,
+        address_type: addressForm.address_type || 'physical',
+      };
+
+      // Check if any address field has a value
+      const hasAddressData = addressData.street_address || addressData.suburb || 
+        addressData.town || addressData.city || addressData.province || addressData.postal_code;
+
+      if (hasAddressData) {
+        if (existingAddress?.id) {
+          // Update existing address
+          await AddressService.update(existingAddress.id, addressData);
+        } else {
+          // Create new address
+          const newAddress = await AddressService.create(addressData);
+          setExistingAddress(newAddress);
+        }
+      }
+
+      // Save banking details (create or update)
+      const bankingData: CreateBankingDetailsDto = {
+        company_id: company.id,
+        label: bankingForm.label?.trim() || 'Primary Account',
+        bank_name: bankingForm.bank_name?.trim() || '',
+        account_holder: bankingForm.account_holder?.trim() || undefined,
+        account_number: bankingForm.account_number?.trim() || '',
+        account_type: bankingForm.account_type || 'cheque',
+        branch_code: bankingForm.branch_code?.trim() || undefined,
+        branch_name: bankingForm.branch_name?.trim() || undefined,
+        swift_code: bankingForm.swift_code?.trim() || undefined,
+        is_primary: true,
+        is_active: true,
+      };
+
+      // Check if banking details have required fields
+      const hasBankingData = bankingData.bank_name && bankingData.account_number;
+
+      if (hasBankingData) {
+        if (existingBankingDetails?.id) {
+          // Update existing banking details
+          await BankingDetailsService.update(existingBankingDetails.id, bankingData);
+        } else {
+          // Create new banking details
+          const newBanking = await BankingDetailsService.create(bankingData);
+          setExistingBankingDetails(newBanking);
+        }
+      }
+
       toast.success('Company updated');
       // Refresh company data
       const updated = await CompanyService.findById(company.id!);
@@ -71,6 +271,34 @@ export function CompanyEditTab({ company, onCompanyUpdate }: CompanyEditTabProps
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDelete = useCallback(async () => {
+    if (!company.id) return;
+    
+    setDeleting(true);
+    try {
+      // Delete related data first (cascade delete)
+      if (relatedDataCount.contacts > 0) {
+        await ContactService.deleteByCompanyId(company.id);
+      }
+      
+      // Now delete the company
+      await CompanyService.delete(company.id);
+      toast.success('Company and all related data deleted successfully');
+      setShowDeleteModal(false);
+      onCompanyDelete?.();
+      navigate('/app/companies', { replace: true });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete company');
+    } finally {
+      setDeleting(false);
+    }
+  }, [company.id, navigate, onCompanyDelete, relatedDataCount.contacts]);
+
+  const openDeleteModal = (mode: ConfirmationMode) => {
+    setDeleteConfirmationMode(mode);
+    setShowDeleteModal(true);
   };
 
   const inputClass =
@@ -137,15 +365,100 @@ export function CompanyEditTab({ company, onCompanyUpdate }: CompanyEditTabProps
               placeholder="https://example.com"
             />
           </div>
-          <div className="sm:col-span-2">
-            <label htmlFor="address" className={labelClass}>Address</label>
-            <textarea
-              id="address"
-              rows={3}
-              value={form.address ?? ''}
-              onChange={(e) => handleChange('address', e.target.value)}
-              className={inputClass}
-            />
+        </div>
+
+        {/* Physical Address */}
+        <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+            Physical Address
+          </h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label htmlFor="street_address" className={labelClass}>Street Address</label>
+              <input
+                id="street_address"
+                type="text"
+                value={addressForm.street_address ?? ''}
+                onChange={(e) => handleAddressChange('street_address', e.target.value)}
+                className={inputClass}
+                placeholder="123 Main Street"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label htmlFor="street_address_2" className={labelClass}>Street Address 2</label>
+              <input
+                id="street_address_2"
+                type="text"
+                value={addressForm.street_address_2 ?? ''}
+                onChange={(e) => handleAddressChange('street_address_2', e.target.value)}
+                className={inputClass}
+                placeholder="Suite, Unit, Building, Floor, etc."
+              />
+            </div>
+            <div>
+              <label htmlFor="suburb" className={labelClass}>Suburb</label>
+              <input
+                id="suburb"
+                type="text"
+                value={addressForm.suburb ?? ''}
+                onChange={(e) => handleAddressChange('suburb', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="town" className={labelClass}>Town</label>
+              <input
+                id="town"
+                type="text"
+                value={addressForm.town ?? ''}
+                onChange={(e) => handleAddressChange('town', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="city" className={labelClass}>City</label>
+              <input
+                id="city"
+                type="text"
+                value={addressForm.city ?? ''}
+                onChange={(e) => handleAddressChange('city', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="province" className={labelClass}>Province</label>
+              <select
+                id="province"
+                value={addressForm.province ?? ''}
+                onChange={(e) => handleAddressChange('province', e.target.value)}
+                className={inputClass}
+              >
+                {SA_PROVINCES.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="postal_code" className={labelClass}>Postal Code</label>
+              <input
+                id="postal_code"
+                type="text"
+                value={addressForm.postal_code ?? ''}
+                onChange={(e) => handleAddressChange('postal_code', e.target.value)}
+                className={inputClass}
+                placeholder="0001"
+              />
+            </div>
+            <div>
+              <label htmlFor="country" className={labelClass}>Country</label>
+              <input
+                id="country"
+                type="text"
+                value={addressForm.country ?? 'South Africa'}
+                onChange={(e) => handleAddressChange('country', e.target.value)}
+                className={inputClass}
+              />
+            </div>
           </div>
         </div>
 
@@ -211,6 +524,100 @@ export function CompanyEditTab({ company, onCompanyUpdate }: CompanyEditTabProps
           </div>
         </div>
 
+        {/* Banking Details */}
+        <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Banking Details
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            These details will appear on invoices and documents for payment purposes.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <label htmlFor="bank_name" className={labelClass}>Bank Name</label>
+              <select
+                id="bank_name"
+                value={bankingForm.bank_name ?? ''}
+                onChange={(e) => handleBankSelect(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">Select bank…</option>
+                {SA_BANKS.map((bank) => (
+                  <option key={bank.name} value={bank.name}>{bank.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="account_holder" className={labelClass}>Account Holder</label>
+              <input
+                id="account_holder"
+                type="text"
+                value={bankingForm.account_holder ?? ''}
+                onChange={(e) => handleBankingChange('account_holder', e.target.value)}
+                className={inputClass}
+                placeholder="Name on the account"
+              />
+            </div>
+            <div>
+              <label htmlFor="account_number" className={labelClass}>Account Number</label>
+              <input
+                id="account_number"
+                type="text"
+                value={bankingForm.account_number ?? ''}
+                onChange={(e) => handleBankingChange('account_number', e.target.value)}
+                className={inputClass}
+                placeholder="1234567890"
+              />
+            </div>
+            <div>
+              <label htmlFor="account_type" className={labelClass}>Account Type</label>
+              <select
+                id="account_type"
+                value={bankingForm.account_type ?? 'cheque'}
+                onChange={(e) => handleBankingChange('account_type', e.target.value)}
+                className={inputClass}
+              >
+                {ACCOUNT_TYPES.map((type) => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="branch_code" className={labelClass}>Branch Code</label>
+              <input
+                id="branch_code"
+                type="text"
+                value={bankingForm.branch_code ?? ''}
+                onChange={(e) => handleBankingChange('branch_code', e.target.value)}
+                className={inputClass}
+                placeholder="Universal branch code"
+              />
+            </div>
+            <div>
+              <label htmlFor="branch_name" className={labelClass}>Branch Name</label>
+              <input
+                id="branch_name"
+                type="text"
+                value={bankingForm.branch_name ?? ''}
+                onChange={(e) => handleBankingChange('branch_name', e.target.value)}
+                className={inputClass}
+                placeholder="Optional"
+              />
+            </div>
+            <div>
+              <label htmlFor="swift_code" className={labelClass}>SWIFT Code</label>
+              <input
+                id="swift_code"
+                type="text"
+                value={bankingForm.swift_code ?? ''}
+                onChange={(e) => handleBankingChange('swift_code', e.target.value)}
+                className={inputClass}
+                placeholder="For international transfers"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Notes */}
         <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
           <label htmlFor="notes" className={labelClass}>Notes</label>
@@ -235,6 +642,56 @@ export function CompanyEditTab({ company, onCompanyUpdate }: CompanyEditTabProps
           </button>
         </div>
       </form>
+
+      {/* Danger Zone - Delete Company */}
+      <div className="mt-6 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-900/10 p-6">
+        <h3 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">
+          Danger Zone
+        </h3>
+        <p className="text-sm text-red-600 dark:text-red-400/80 mb-2">
+          Deleting this company is permanent and cannot be undone.
+        </p>
+        {relatedDataCount.contacts > 0 && (
+          <p className="text-sm text-red-600 dark:text-red-400/80 mb-4">
+            <strong>Warning:</strong> This will also delete {relatedDataCount.contacts} contact{relatedDataCount.contacts !== 1 ? 's' : ''} associated with this company.
+          </p>
+        )}
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => openDeleteModal('button')}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-400 bg-white dark:bg-slate-800 border border-red-300 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+          >
+            <LuTrash2 className="w-4 h-4" />
+            Quick Delete
+          </button>
+          <button
+            type="button"
+            onClick={() => openDeleteModal('type')}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 rounded-lg transition-colors"
+          >
+            <LuTrash2 className="w-4 h-4" />
+            Delete with Confirmation
+          </button>
+        </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        title="Delete Company"
+        message={
+          relatedDataCount.contacts > 0
+            ? `Are you sure you want to delete "${company.name}"? This will permanently delete the company and ${relatedDataCount.contacts} associated contact${relatedDataCount.contacts !== 1 ? 's' : ''}. This action cannot be undone.`
+            : `Are you sure you want to delete "${company.name}"? This action cannot be undone.`
+        }
+        itemName={company.name}
+        confirmationMode={deleteConfirmationMode}
+        isLoading={deleting}
+        confirmButtonText="Delete Company"
+      />
     </div>
   );
 }

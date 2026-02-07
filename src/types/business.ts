@@ -25,6 +25,7 @@ export interface CreateBusinessDto {
   vat_number?: string;
   registration_number?: string;
   banking_details?: string;
+  logo_url?: string;
 }
 
 export interface UserBusiness {

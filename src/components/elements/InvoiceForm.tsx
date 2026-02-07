@@ -12,6 +12,7 @@ import { formatCurrency, SUPPORTED_CURRENCIES } from '../../utils/currency';
 
 interface InvoiceFormProps {
   invoiceId?: number;
+  initialCompanyId?: number;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -31,7 +32,7 @@ function lineTotal(row: LineRow): number {
   return beforeDiscount * (1 - row.discountPercent / 100);
 }
 
-export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps) {
+export function InvoiceForm({ invoiceId, initialCompanyId, onSuccess, onCancel }: InvoiceFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -39,6 +40,7 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [lineRows, setLineRows] = useState<LineRow[]>([]);
   const [globalDiscountPercent, setGlobalDiscountPercent] = useState(0);
+  const [initialCompanyApplied, setInitialCompanyApplied] = useState(false);
 
   const [formData, setFormData] = useState<CreateInvoiceDto>({
     invoice_number: '',
@@ -70,6 +72,24 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
       }
     );
   }, []);
+
+  // Pre-select company if initialCompanyId is provided
+  useEffect(() => {
+    if (initialCompanyId && companies.length > 0 && !initialCompanyApplied && !invoiceId) {
+      const company = companies.find((c) => c.id === initialCompanyId);
+      if (company) {
+        setSelectedCompany(company);
+        setFormData((prev) => ({
+          ...prev,
+          customer_name: company.name,
+          customer_email: company.email ?? '',
+          customer_address: company.address ?? '',
+          customer_vat_number: company.vat_number ?? '',
+        }));
+        setInitialCompanyApplied(true);
+      }
+    }
+  }, [initialCompanyId, companies, initialCompanyApplied, invoiceId]);
 
   // Auto-generate invoice number for new invoices (0001, 0002, ...)
   useEffect(() => {
