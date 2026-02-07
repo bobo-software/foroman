@@ -3,6 +3,7 @@ import InvoiceService from '@/services/invoiceService';
 import PaymentService from '@/services/paymentService';
 import { formatCurrency, SUPPORTED_CURRENCIES } from '@/utils/currency';
 import { generateStatementPdf, type StatementRow } from '@/utils/statementPdf';
+import { useBusinessStore } from '@/stores/data/BusinessStore';
 import type { CompanyTabProps } from './types';
 import { formatDate } from './types';
 
@@ -20,6 +21,7 @@ function lastDayOfCurrentMonth(): string {
 }
 
 export function CompanyStatementsTab({ company }: CompanyTabProps) {
+  const business = useBusinessStore((s) => s.currentBusiness);
   const [stmtFromDate, setStmtFromDate] = useState<string>(() => firstDayOfCurrentMonth());
   const [stmtToDate, setStmtToDate] = useState<string>(() => lastDayOfCurrentMonth());
   const [stmtCurrency, setStmtCurrency] = useState<string>('ZAR');
@@ -108,8 +110,8 @@ export function CompanyStatementsTab({ company }: CompanyTabProps) {
     if (!company?.name || stmtRows.length === 0) return;
     const from = (stmtFromDate || stmtRows[0]?.date) ?? '';
     const to = (stmtToDate || stmtRows[stmtRows.length - 1]?.date) ?? '';
-    await generateStatementPdf(company.name, from, to, stmtRows, stmtCurrency);
-  }, [company?.name, stmtFromDate, stmtToDate, stmtRows, stmtCurrency]);
+    await generateStatementPdf(company.name, from, to, stmtRows, stmtCurrency, business);
+  }, [company?.name, stmtFromDate, stmtToDate, stmtRows, stmtCurrency, business]);
 
   const stmtFilteredRows = useMemo(
     () => stmtRows.filter((r) => r.currency === stmtCurrency),

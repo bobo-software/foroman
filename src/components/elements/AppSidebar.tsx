@@ -1,10 +1,27 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import useThemeStore from '../../stores/state/ThemeStore';
+import { useBusinessStore } from '../../stores/data/BusinessStore';
+import StorageService from '../../services/storageService';
 
 const AppSidebar = () => {
   const location = useLocation();
   const theme = useThemeStore((s) => s.theme);
   const isDark = theme === 'dark';
+  const currentBusiness = useBusinessStore((s) => s.currentBusiness);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (currentBusiness?.logo_url) {
+      StorageService.getFileDownloadUrl(currentBusiness.logo_url)
+        .then((url) => setLogoUrl(url))
+        .catch(() => setLogoUrl(null));
+    } else {
+      setLogoUrl(null);
+    }
+  }, [currentBusiness?.logo_url]);
+
+  const businessName = currentBusiness?.name || 'Foroman';
 
   const navLink = (to: string, label: string, exact?: boolean) => {
     const isActive = exact
@@ -37,8 +54,12 @@ const AppSidebar = () => {
           to="/app/dashboard"
           className={`flex items-center gap-2.5 no-underline ${logoCls}`}
         >
-          <img src="/favicon.png" alt="" className="h-8 w-8 rounded-lg object-contain shrink-0" />
-          <span className="text-xl font-bold tracking-tight">Foroman</span>
+          {logoUrl ? (
+            <img src={logoUrl} alt={businessName} className="h-8 w-8 rounded-lg object-contain shrink-0" />
+          ) : (
+            <img src="/favicon.png" alt="" className="h-8 w-8 rounded-lg object-contain shrink-0" />
+          )}
+          <span className="text-xl font-bold tracking-tight truncate">{businessName}</span>
         </Link>
       </div>
       <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">

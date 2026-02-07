@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 const SETTINGS_TABS = [
   { to: '/app/settings', label: 'Business', exact: true },
   { to: '/app/settings/banking', label: 'Banking', exact: false },
+  { to: '/app/settings/documents', label: 'Documents', exact: false },
   { to: '/app/settings/preferences', label: 'Preferences', exact: false },
 ];
 

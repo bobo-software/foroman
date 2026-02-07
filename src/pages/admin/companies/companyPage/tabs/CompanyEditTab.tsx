@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LuTrash2 } from 'react-icons/lu';
+import { LuTrash2, LuUpload, LuImage } from 'react-icons/lu';
 import CompanyService from '@/services/companyService';
 import ContactService from '@/services/contactService';
 import AddressService from '@/services/addressService';
 import BankingDetailsService from '@/services/bankingDetailsService';
+import StorageService from '@/services/storageService';
 import type { Company, CreateCompanyDto } from '@/types/company';
 import type { Address, CreateAddressDto } from '@/types/address';
 import type { BankingDetails, CreateBankingDetailsDto } from '@/types/bankingDetails';
@@ -92,11 +93,33 @@ export function CompanyEditTab({ company, onCompanyUpdate, onCompanyDelete }: Co
     is_active: true,
   });
 
+  // Logo state
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [hasExistingLogo, setHasExistingLogo] = useState(false);
+
   // Delete modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmationMode, setDeleteConfirmationMode] = useState<ConfirmationMode>('button');
   const [deleting, setDeleting] = useState(false);
   const [relatedDataCount, setRelatedDataCount] = useState<{ contacts: number }>({ contacts: 0 });
+
+  // Load existing logo
+  useEffect(() => {
+    if (company.logo_url) {
+      StorageService.getFileDownloadUrl(company.logo_url).then((url) => {
+        if (url) {
+          setLogoPreview(url);
+          setHasExistingLogo(true);
+        }
+      }).catch(() => {
+        setLogoPreview(null);
+        setHasExistingLogo(false);
+      });
+    }
+  }, [company.logo_url]);
 
   // Fetch existing address, banking details, and related data counts
   useEffect(() => {
@@ -175,6 +198,88 @@ export function CompanyEditTab({ company, onCompanyUpdate, onCompanyDelete }: Co
       branch_code: selectedBank?.branchCode ?? prev.branch_code,
     }));
   }, []);
+
+  const handleLogoSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please select a PNG, JPG, SVG, or WebP image');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Logo must be smaller than 2MB');
+      return;
+    }
+
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setLogoPreview(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const handleLogoUpload = useCallback(async () => {
+    if (!logoFile || !company.id) return;
+
+    setUploadingLogo(true);
+    try {
+      const { filePath } = await StorageService.uploadClientCompanyLogo(company.id, logoFile);
+      await CompanyService.update(company.id, { logo_url: filePath });
+
+      const objectUrl = URL.createObjectURL(logoFile);
+      setLogoPreview(objectUrl);
+      setLogoFile(null);
+      setHasExistingLogo(true);
+      toast.success('Logo uploaded successfully');
+
+      if (logoInputRef.current) {
+        logoInputRef.current.value = '';
+      }
+
+      // Refresh company data
+      const updated = await CompanyService.findById(company.id);
+      if (updated) {
+        onCompanyUpdate?.(updated);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  }, [logoFile, company.id, onCompanyUpdate]);
+
+  const handleLogoRemove = useCallback(async () => {
+    if (!company.id) return;
+
+    try {
+      if (company.logo_url) {
+        await StorageService.deleteCompanyLogo(company.logo_url).catch(() => {
+          // Silently fail if file doesn't exist in storage
+        });
+      }
+      await CompanyService.update(company.id, { logo_url: '' });
+      setLogoPreview(null);
+      setLogoFile(null);
+      setHasExistingLogo(false);
+
+      if (logoInputRef.current) {
+        logoInputRef.current.value = '';
+      }
+
+      toast.success('Logo removed');
+
+      const updated = await CompanyService.findById(company.id);
+      if (updated) {
+        onCompanyUpdate?.(updated);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to remove logo');
+    }
+  }, [company.id, company.logo_url, onCompanyUpdate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -311,59 +416,149 @@ export function CompanyEditTab({ company, onCompanyUpdate, onCompanyDelete }: Co
         Edit company details
       </h2>
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Company Logo */}
+        <div>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+            Company Logo
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            Upload a logo for this company. Recommended size: 300x100px. Max 2MB.
+          </p>
+          <div className="flex items-start gap-6">
+            {/* Logo Preview */}
+            <div className="shrink-0 w-48 h-28 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 flex items-center justify-center overflow-hidden">
+              {logoPreview ? (
+                <img
+                  src={logoPreview}
+                  alt="Company logo"
+                  className="max-w-full max-h-full object-contain p-2"
+                />
+              ) : (
+                <div className="text-center text-slate-400 dark:text-slate-500">
+                  <LuImage className="w-8 h-8 mx-auto mb-1" />
+                  <span className="text-xs">No logo</span>
+                </div>
+              )}
+            </div>
+
+            {/* Upload Controls */}
+            <div className="flex flex-col gap-2">
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                onChange={handleLogoSelect}
+                className="hidden"
+                id="company-logo-upload"
+              />
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                <LuUpload className="w-4 h-4" />
+                {hasExistingLogo ? 'Change Logo' : 'Select Logo'}
+              </button>
+
+              {logoFile && (
+                <button
+                  type="button"
+                  onClick={handleLogoUpload}
+                  disabled={uploadingLogo}
+                  className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploadingLogo ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Uploading…
+                    </>
+                  ) : (
+                    <>
+                      <LuUpload className="w-4 h-4" />
+                      Upload Logo
+                    </>
+                  )}
+                </button>
+              )}
+
+              {hasExistingLogo && !logoFile && (
+                <button
+                  type="button"
+                  onClick={handleLogoRemove}
+                  className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-slate-800 border border-red-300 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  <LuTrash2 className="w-4 h-4" />
+                  Remove Logo
+                </button>
+              )}
+
+              {logoFile && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Selected: {logoFile.name} ({(logoFile.size / 1024).toFixed(1)}KB)
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Basic Info */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label htmlFor="name" className={labelClass}>Company name *</label>
-            <input
-              id="name"
-              type="text"
-              required
-              value={form.name}
-              onChange={(e) => handleChange('name', e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="contact_person" className={labelClass}>Contact person</label>
-            <input
-              id="contact_person"
-              type="text"
-              value={form.contact_person ?? ''}
-              onChange={(e) => handleChange('contact_person', e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="email" className={labelClass}>Email</label>
-            <input
-              id="email"
-              type="email"
-              value={form.email ?? ''}
-              onChange={(e) => handleChange('email', e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="phone" className={labelClass}>Phone</label>
-            <input
-              id="phone"
-              type="tel"
-              value={form.phone ?? ''}
-              onChange={(e) => handleChange('phone', e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="website" className={labelClass}>Website</label>
-            <input
-              id="website"
-              type="text"
-              value={form.website ?? ''}
-              onChange={(e) => handleChange('website', e.target.value)}
-              className={inputClass}
-              placeholder="https://example.com"
-            />
+        <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label htmlFor="name" className={labelClass}>Company name *</label>
+              <input
+                id="name"
+                type="text"
+                required
+                value={form.name}
+                onChange={(e) => handleChange('name', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="contact_person" className={labelClass}>Contact person</label>
+              <input
+                id="contact_person"
+                type="text"
+                value={form.contact_person ?? ''}
+                onChange={(e) => handleChange('contact_person', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="email" className={labelClass}>Email</label>
+              <input
+                id="email"
+                type="email"
+                value={form.email ?? ''}
+                onChange={(e) => handleChange('email', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="phone" className={labelClass}>Phone</label>
+              <input
+                id="phone"
+                type="tel"
+                value={form.phone ?? ''}
+                onChange={(e) => handleChange('phone', e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="website" className={labelClass}>Website</label>
+              <input
+                id="website"
+                type="text"
+                value={form.website ?? ''}
+                onChange={(e) => handleChange('website', e.target.value)}
+                className={inputClass}
+                placeholder="https://example.com"
+              />
+            </div>
           </div>
         </div>
 

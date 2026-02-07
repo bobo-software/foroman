@@ -27,6 +27,8 @@ export interface Company {
   /** Company website */
   website?: string;
   notes?: string;
+  /** File path for the company logo stored in MinIO */
+  logo_url?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -46,4 +48,5 @@ export interface CreateCompanyDto {
   industry?: string;
   website?: string;
   notes?: string;
+  logo_url?: string;
 }

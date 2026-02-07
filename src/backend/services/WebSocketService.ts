@@ -269,4 +269,3 @@ class WebSocketService {
 const webSocketService = new WebSocketService();
 export default webSocketService;
 export { webSocketService };
-export type { DatabaseEvent, ProjectEvent, ConnectionStatus, DatabaseEventType };

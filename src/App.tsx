@@ -31,7 +31,7 @@ import { StatementsPage } from '@pages/admin/StatementsPage';
 import { PaymentsPage } from '@pages/admin/PaymentsPage';
 import { PaymentFormPage } from '@pages/admin/PaymentFormPage';
 import { SettingsPage } from '@/pages/admin/settings/SettingsPage';
-import { BusinessSettingsTab, BankingSettingsTab, PreferencesSettingsTab } from '@pages/admin/settings/tabs';
+import { BusinessSettingsTab, BankingSettingsTab, PreferencesSettingsTab, DocumentSettingsTab } from '@pages/admin/settings/tabs';
 import './App.css';
 import { AppLayout } from './layouts/AppLayout';
 
@@ -137,6 +137,7 @@ function App() {
           <Route path="settings" element={<SettingsPage />}>
             <Route index element={<BusinessSettingsTab />} />
             <Route path="banking" element={<BankingSettingsTab />} />
+            <Route path="documents" element={<DocumentSettingsTab />} />
             <Route path="preferences" element={<PreferencesSettingsTab />} />
           </Route>
         </Route>

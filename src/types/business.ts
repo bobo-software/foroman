@@ -2,6 +2,8 @@
  * Business types — the user's own company/business entity
  */
 
+import type { DocumentTemplateId } from './documentTemplate';
+
 export interface Business {
   id?: number;
   user_id?: number;
@@ -13,6 +15,10 @@ export interface Business {
   registration_number?: string;
   banking_details?: string;
   logo_url?: string;
+  /** Selected document template id (defaults to 'classic') */
+  document_template?: DocumentTemplateId;
+  /** Whether to embed the company logo in generated PDFs */
+  show_logo_on_documents?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -26,6 +32,8 @@ export interface CreateBusinessDto {
   registration_number?: string;
   banking_details?: string;
   logo_url?: string;
+  document_template?: DocumentTemplateId;
+  show_logo_on_documents?: boolean;
 }
 
 export interface UserBusiness {

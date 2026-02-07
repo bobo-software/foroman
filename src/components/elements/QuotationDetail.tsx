@@ -46,10 +46,12 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
     }
   };
 
+  const business = useBusinessStore((s) => s.currentBusiness);
+
   const handleDownloadPdf = useCallback(async () => {
     if (!quotation) return;
-    await generateQuotationPdf(quotation, lineItems);
-  }, [quotation, lineItems]);
+    await generateQuotationPdf(quotation, lineItems, business);
+  }, [quotation, lineItems, business]);
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this quotation?')) return;

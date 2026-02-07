@@ -60,12 +60,14 @@ export class StorageService {
   }
 
   /**
-   * Get the download URL for a file
-   * Endpoint: GET /app-api/storage/:bucketName/download/:filePath
+   * Get a fresh presigned download URL for a file.
+   * Endpoint: GET /app-api/storage/files/download?bucket=...&path=...&returnUrl=true
    */
-  static getFileUrl(filePath: string): string {
-    const apiUrl = skaftinClient.getApiUrl();
-    return `${apiUrl}/app-api/storage/${BUCKET_NAME}/download/${encodeURIComponent(filePath)}`;
+  static async getFileDownloadUrl(filePath: string): Promise<string> {
+    const response = await skaftinClient.get<{ url: string }>(
+      `/app-api/storage/files/download?bucket=${encodeURIComponent(BUCKET_NAME)}&path=${encodeURIComponent(filePath)}&returnUrl=true`
+    );
+    return response.data.url;
   }
 
   /**
@@ -78,7 +80,7 @@ export class StorageService {
 
   /**
    * Upload a company logo.
-   * Stored as: {businessId}_company_logo.{extension}
+   * Stored as: {businessId}/company_logo.{extension}
    * Returns the file **path** (not URL) to be persisted in the DB.
    */
   static async uploadCompanyLogo(
@@ -86,7 +88,7 @@ export class StorageService {
     file: File,
   ): Promise<{ filePath: string; data: { fileName: string; size: number; etag: string; url: string } }> {
     const extension = file.name.split('.').pop()?.toLowerCase() || 'png';
-    const filePath = `${businessId}_company_logo.${extension}`;
+    const filePath = `${businessId}/company_logo.${extension}`;
     const data = await this.upload(filePath, file);
     return { filePath, data };
   }
@@ -96,6 +98,21 @@ export class StorageService {
    */
   static async deleteCompanyLogo(filePath: string): Promise<void> {
     return this.delete(filePath);
+  }
+
+  /**
+   * Upload a client company logo.
+   * Stored as: companies/{companyId}/logo.{extension}
+   * Returns the file **path** (not URL) to be persisted in the DB.
+   */
+  static async uploadClientCompanyLogo(
+    companyId: number,
+    file: File,
+  ): Promise<{ filePath: string; data: { fileName: string; size: number; etag: string; url: string } }> {
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'png';
+    const filePath = `companies/${companyId}/logo.${extension}`;
+    const data = await this.upload(filePath, file);
+    return { filePath, data };
   }
 
   /**

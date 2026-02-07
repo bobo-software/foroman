@@ -27,22 +27,29 @@ Get all buckets for the project.
 Authorization: Bearer <jwt-token>
 ```
 
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| includeStats | string | If `true`, includes `fileCount` and `totalSize` for each bucket |
+
 **Response:**
 ```json
 {
   "success": true,
   "data": [
     {
+      "id": 1,
       "name": "uploads",
-      "creationDate": "2024-01-15T10:30:00.000Z"
+      "description": "User uploads bucket",
+      "creationDate": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z"
     },
     {
+      "id": 2,
       "name": "images",
-      "creationDate": "2024-01-10T08:00:00.000Z"
-    },
-    {
-      "name": "documents",
-      "creationDate": "2024-01-05T14:20:00.000Z"
+      "description": "Image assets",
+      "creationDate": "2024-01-10T08:00:00.000Z",
+      "updatedAt": "2024-01-10T08:00:00.000Z"
     }
   ]
 }
@@ -81,20 +88,20 @@ GET /app-api/storage/uploads/files?prefix=images/&maxKeys=100
   "data": {
     "files": [
       {
-        "name": "images/logo.png",
+        "key": "images/logo.png",
         "size": 24576,
         "lastModified": "2024-01-15T10:30:00.000Z",
         "etag": "\"d41d8cd98f00b204e9800998ecf8427e\""
       },
       {
-        "name": "images/banner.jpg",
+        "key": "images/banner.jpg",
         "size": 102400,
         "lastModified": "2024-01-14T09:15:00.000Z",
         "etag": "\"a87ff679a2f3e71d9181a67b7542122c\""
       }
     ],
-    "isTruncated": false,
-    "keyCount": 2
+    "count": 2,
+    "bucket": "uploads"
   }
 }
 ```
@@ -138,12 +145,14 @@ Authorization: Bearer <jwt-token>
   "data": {
     "files": [
       {
-        "name": "reports/monthly-report-jan.pdf",
+        "key": "reports/monthly-report-jan.pdf",
         "size": 512000,
-        "lastModified": "2024-01-15T10:30:00.000Z"
+        "lastModified": "2024-01-15T10:30:00.000Z",
+        "etag": "\"d41d8cd98f00b204e9800998ecf8427e\""
       }
     ],
-    "totalResults": 1
+    "count": 1,
+    "bucket": "uploads"
   }
 }
 ```
@@ -165,7 +174,7 @@ Authorization: Bearer <jwt-token>
 **Request Body:**
 ```json
 {
-  "fileName": "documents/report.pdf",
+  "filePath": "documents/report.pdf",
   "fileContent": "JVBERi0xLjQKJeLjz9MKMyAwIG9ia...",
   "contentType": "application/pdf",
   "metadata": {
@@ -177,21 +186,21 @@ Authorization: Bearer <jwt-token>
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| fileName | string | Yes | Path and filename in bucket |
-| fileContent | string | Yes | Base64 encoded file content |
+| filePath | string | Yes | Path and filename in bucket |
+| fileContent | string | Yes | Base64 encoded file content (empty string allowed for folder markers) |
 | contentType | string | No | MIME type of the file |
 | metadata | object | No | Custom metadata key-value pairs |
 
-**Response:**
+**Response (201):**
 ```json
 {
   "success": true,
   "message": "File uploaded successfully",
   "data": {
-    "fileName": "documents/report.pdf",
+    "filePath": "documents/report.pdf",
     "size": 512000,
-    "etag": "\"d41d8cd98f00b204e9800998ecf8427e\"",
-    "url": "https://minio.example.com/project-bucket/documents/report.pdf"
+    "contentType": "application/pdf",
+    "bucket": "documents"
   }
 }
 ```
@@ -200,15 +209,16 @@ Authorization: Bearer <jwt-token>
 
 ### 5. Upload File (Multipart Form)
 
-Upload a file using multipart form data.
+Upload a file using multipart form data (bucket is in the URL).
 
 **Endpoint:** `POST /app-api/storage/:bucketName/upload-multipart`
 
 **Headers:**
 ```
-Content-Type: multipart/form-data
 Authorization: Bearer <jwt-token>
 ```
+
+**Note:** Do not set `Content-Type` for multipart requests; the client (e.g. cURL with `-F`, or fetch with `FormData`) sets `multipart/form-data; boundary=...` automatically.
 
 **Form Data:**
 | Field | Type | Description |
@@ -226,26 +236,44 @@ curl -X POST "http://localhost:4006/app-api/storage/uploads/upload-multipart" \
   -F 'metadata={"author":"John"}'
 ```
 
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "File uploaded successfully",
+  "data": {
+    "fileName": "1704067200000-file.pdf",
+    "originalName": "file.pdf",
+    "size": 512000,
+    "contentType": "application/pdf",
+    "bucket": "uploads"
+  }
+}
+```
+
+**Note:** The filename is automatically prefixed with a timestamp to ensure uniqueness.
+
 ---
 
 ### 6. Upload File (Form with Bucket)
 
-Upload a file with bucket and path in form data.
+Upload a file with bucket and path in form data. Use this when the bucket and path are not in the URL (e.g. dynamic bucket/path from the client).
 
 **Endpoint:** `POST /app-api/storage/files`
 
 **Headers:**
 ```
-Content-Type: multipart/form-data
 Authorization: Bearer <jwt-token>
 ```
 
+**Important:** For multipart uploads, do **not** set `Content-Type` yourself. Let the client set it automatically to `multipart/form-data; boundary=...` (e.g. when using `FormData` with `fetch`, or cURL’s `-F`). Setting `Content-Type: application/json` or omitting the boundary will cause the request to fail.
+
 **Form Data:**
-| Field | Type | Description |
-|-------|------|-------------|
-| file | File | The file to upload |
-| bucket | string | Target bucket name |
-| path | string | File path in bucket |
+| Field | Type   | Required | Description           |
+|-------|--------|----------|-----------------------|
+| file  | File   | Yes      | The file to upload    |
+| bucket| string | Yes      | Target bucket name    |
+| path  | string | Yes      | Full path in bucket (e.g. `vendors/12/logo.png`) |
 
 **cURL Example:**
 ```bash
@@ -254,6 +282,36 @@ curl -X POST "http://localhost:4006/app-api/storage/files" \
   -F "file=@/path/to/local/image.png" \
   -F "bucket=images" \
   -F "path=avatars/user-123.png"
+```
+
+**JavaScript (fetch + FormData) example:**
+```javascript
+const formData = new FormData();
+formData.append('file', file);        // File from input or Blob
+formData.append('bucket', 'images');
+formData.append('path', 'vendors/12/logo.png');
+
+// Do NOT set Content-Type header – browser sets multipart/form-data with boundary
+const response = await fetch('/app-api/storage/files', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${token}` },
+  body: formData,
+});
+```
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "File uploaded successfully",
+  "data": {
+    "filePath": "vendors/12/logo.png",
+    "originalName": "Pasted image.png",
+    "size": 24576,
+    "contentType": "image/png",
+    "bucket": "images"
+  }
+}
 ```
 
 ---
@@ -295,14 +353,28 @@ Authorization: Bearer <jwt-token>
 ```
 
 **Query Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| bucket | string | Bucket name |
-| path | string | File path in bucket |
+| Parameter | Type   | Description |
+|-----------|--------|-------------|
+| bucket    | string | Bucket name |
+| path      | string | File path in bucket (URL-encoded if needed) |
+| returnUrl | string | If `true`, returns JSON `{ "url": "<signed-url>" }` instead of redirecting |
 
-**Example:**
+**Example (redirect to signed URL):**
 ```
 GET /app-api/storage/files/download?bucket=documents&path=reports/monthly-jan.pdf
+```
+
+**Example (get signed URL in response):**
+```
+GET /app-api/storage/files/download?bucket=documents&path=reports/monthly-jan.pdf&returnUrl=true
+```
+**Response when returnUrl=true:**
+```json
+{
+  "success": true,
+  "message": "Download URL generated",
+  "data": { "url": "https://minio.example.com/..." }
+}
 ```
 
 ---
@@ -327,7 +399,11 @@ DELETE /app-api/storage/documents/files/old-report.pdf
 ```json
 {
   "success": true,
-  "message": "File deleted successfully"
+  "message": "File deleted successfully",
+  "data": {
+    "filePath": "old-report.pdf",
+    "bucket": "documents"
+  }
 }
 ```
 
@@ -350,6 +426,18 @@ Authorization: Bearer <jwt-token>
 {
   "bucket": "documents",
   "path": "reports/old-report.pdf"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "File deleted successfully",
+  "data": {
+    "filePath": "reports/old-report.pdf",
+    "bucket": "documents"
+  }
 }
 ```
 
@@ -376,7 +464,7 @@ GET /app-api/storage/documents/files/reports/monthly-jan.pdf/metadata
 {
   "success": true,
   "data": {
-    "fileName": "reports/monthly-jan.pdf",
+    "filePath": "reports/monthly-jan.pdf",
     "size": 512000,
     "contentType": "application/pdf",
     "lastModified": "2024-01-15T10:30:00.000Z",
@@ -384,7 +472,8 @@ GET /app-api/storage/documents/files/reports/monthly-jan.pdf/metadata
     "metadata": {
       "author": "John Doe",
       "department": "Finance"
-    }
+    },
+    "bucket": "documents"
   }
 }
 ```
@@ -419,6 +508,8 @@ Authorization: Bearer <jwt-token>
   "success": true,
   "message": "Folder renamed successfully",
   "data": {
+    "oldPath": "documents/2023/",
+    "newPath": "documents/archive-2023/",
     "filesRenamed": 15
   }
 }
@@ -448,6 +539,7 @@ DELETE /app-api/storage/documents/folders/old-reports/
   "success": true,
   "message": "Folder deleted successfully",
   "data": {
+    "folderPath": "old-reports/",
     "filesDeleted": 10
   }
 }
@@ -472,13 +564,429 @@ These endpoints only require an API key (no user JWT).
 | GET | `/:bucketName/files` | List files |
 | POST | `/:bucketName/search` | Search files |
 | POST | `/:bucketName/upload` | Upload file (base64) |
+| POST | `/:bucketName/upload-multipart` | Upload file (multipart) |
+| POST | `/files` | Upload file (form with bucket) |
 | GET | `/:bucketName/download/:filePath` | Download file |
+| GET | `/files/download` | Download file (query params) |
 
 **Example:**
 ```bash
 curl -X GET "http://localhost:4006/app-api-2/storage/uploads/files" \
   -H "x-api-key: your-api-key"
 ```
+
+---
+
+## Working with File URLs
+
+### Why Store Paths, Not URLs
+
+Presigned URLs expire (default: 1 hour). **Do not store presigned URLs in your database.** Instead, store the bucket and path, then generate a fresh URL when needed.
+
+**Bad (URL expires):**
+```json
+{
+  "vendorId": 12,
+  "logoUrl": "http://localhost:9020/phandapay/vendors/12/logo.png?X-Amz-Algorithm=...&X-Amz-Expires=3600&..."
+}
+```
+
+**Good (path never expires):**
+```json
+{
+  "vendorId": 12,
+  "logoBucket": "phandapay",
+  "logoPath": "vendors/12/logo.png"
+}
+```
+
+### Retrieving a Presigned URL
+
+When you need to display an image or download a file, generate a fresh presigned URL:
+
+**Request:**
+```
+GET /app-api/storage/files/download?bucket=phandapay&path=vendors/12/logo.png&returnUrl=true
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Download URL generated",
+  "data": {
+    "url": "http://localhost:9020/phandapay/vendors/12/logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&..."
+  }
+}
+```
+
+### Example: Displaying a Vendor Logo
+
+**1. Store the path when uploading:**
+```javascript
+// Upload the file
+const formData = new FormData();
+formData.append('file', logoFile);
+formData.append('bucket', 'phandapay');
+formData.append('path', `vendors/${vendorId}/logo.png`);
+
+const uploadRes = await fetch('/app-api/storage/files', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${token}` },
+  body: formData,
+});
+
+// Save only the path to your database
+await saveVendor({
+  id: vendorId,
+  logoBucket: 'phandapay',
+  logoPath: `vendors/${vendorId}/logo.png`
+});
+```
+
+**2. Retrieve the URL when displaying:**
+```javascript
+// Get fresh presigned URL
+const urlRes = await fetch(
+  `/app-api/storage/files/download?bucket=${vendor.logoBucket}&path=${encodeURIComponent(vendor.logoPath)}&returnUrl=true`,
+  { headers: { 'Authorization': `Bearer ${token}` } }
+);
+const { data } = await urlRes.json();
+
+// Use the URL (valid for 1 hour)
+const imageUrl = data.url;
+```
+
+**3. In React/Vue, fetch URL on component mount:**
+```javascript
+// React example
+const [logoUrl, setLogoUrl] = useState(null);
+
+useEffect(() => {
+  if (vendor.logoPath) {
+    fetch(`/app-api/storage/files/download?bucket=${vendor.logoBucket}&path=${encodeURIComponent(vendor.logoPath)}&returnUrl=true`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(({ data }) => setLogoUrl(data.url));
+  }
+}, [vendor.logoBucket, vendor.logoPath]);
+
+return <img src={logoUrl} alt="Vendor logo" />;
+```
+
+### Alternative: Direct Download (No URL)
+
+If you don't need the URL (e.g., for direct file downloads), omit `returnUrl`:
+
+```
+GET /app-api/storage/files/download?bucket=phandapay&path=vendors/12/logo.png
+```
+
+This redirects directly to the file (302 redirect to presigned URL).
+
+---
+
+## Current Frontend Implementation
+
+This section documents how storage uploads are **actually wired up** in the admin frontend today, from the HTTP client through to UI components.
+
+### Architecture Overview
+
+```
+UI Component (VendorLogoManager)
+  └─ StorageService          (src/backend/services/StorageService.ts)
+       └─ SkaftinClient      (src/backend/client/SkaftinClient.ts)
+            └─ fetch()        → Skaftin API (POST /app-api/storage/files)
+```
+
+All storage operations go through the **SkaftinClient** singleton, which handles authentication headers, FormData detection, and JSON serialisation. **StorageService** wraps the raw HTTP calls into typed, domain-level methods.
+
+---
+
+### SkaftinClient (`src/backend/client/SkaftinClient.ts`)
+
+The unified HTTP client for every Skaftin API call.
+
+**Environment variables:**
+
+| Variable | Purpose |
+|----------|---------|
+| `VITE_SKAFTIN_API_URL` | Skaftin API base URL (default `http://localhost:4006`) |
+| `VITE_SKAFTIN_API_KEY` | Platform-level API key (sent as `X-API-Key`) |
+| `VITE_SKAFTIN_ACCESS_TOKEN` | Fallback access token (sent as `x-access-token`) |
+| `VITE_SKAFTIN_PROJECT_ID` | Optional project identifier |
+
+**Authentication headers (auto-attached on every request):**
+
+| Header | Source | When |
+|--------|--------|------|
+| `X-API-Key` | `VITE_SKAFTIN_API_KEY` | Always (platform auth) |
+| `Authorization: Bearer <jwt>` | `AuthStore.sessionUser.accessToken` | When a user is logged in |
+| `x-access-token` | `VITE_SKAFTIN_ACCESS_TOKEN` | Fallback when no API key |
+
+**FormData handling:**
+When the request body is a `FormData` instance the client **removes** the `Content-Type` header so the browser can set `multipart/form-data; boundary=…` automatically. This is critical — manually setting `Content-Type` will break multipart uploads.
+
+```typescript
+// Simplified from SkaftinClient.buildHeaders()
+if (isFormData) {
+  delete headers['Content-Type'];   // let browser set boundary
+}
+```
+
+**Key method for uploads:**
+
+```typescript
+async postFormData<T>(endpoint: string, body: FormData): Promise<ApiResponse<T>> {
+  return this.request<T>(endpoint, { method: 'POST', body });
+}
+```
+
+---
+
+### StorageService (`src/backend/services/StorageService.ts`)
+
+High-level service that wraps storage API calls. Exported as a singleton.
+
+**Constants:**
+
+```typescript
+export const VENDOR_LOGO_BUCKET = 'phandapay';
+```
+
+**Upload response type:**
+
+```typescript
+export interface StorageUploadResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    filePath: string;       // e.g. "vendors/12/logo.png"
+    originalName?: string;  // e.g. "Pasted image.png"
+    size?: number;
+    contentType?: string;
+    bucket: string;         // e.g. "phandapay"
+  };
+}
+```
+
+**Methods:**
+
+| Method | API Endpoint | Description |
+|--------|-------------|-------------|
+| `uploadFile(bucket, path, file)` | `POST /app-api/storage/files` | Upload via multipart form |
+| `getFileDownloadUrl(bucket, path)` | `GET /app-api/storage/files/download?returnUrl=true` | Get a fresh signed URL |
+| `listFiles(bucket, prefix?, maxKeys?)` | `GET /app-api/storage/:bucket/files` | List files in bucket |
+| `deleteFile(bucket, path)` | `DELETE /app-api/storage/files` | Delete a file |
+
+**Upload implementation:**
+
+```typescript
+async uploadFile(bucket: string, path: string, file: File): Promise<StorageUploadResponse['data']> {
+  const form = new FormData();
+  form.append('bucket', bucket);   // bucket first
+  form.append('path', path);       // path second
+  form.append('file', file);       // file last (server parses fields in order)
+
+  const response = await skaftinClient.postFormData<StorageUploadResponse['data']>(
+    '/app-api/storage/files',
+    form
+  );
+
+  if (!response.success || !response.data) {
+    throw new Error(response.message || 'Storage upload failed');
+  }
+  return response.data;
+}
+```
+
+---
+
+### Database Schema — `images` table
+
+Files are **not** tracked by URL. The `images` table stores the **bucket** and **path** so a fresh signed URL can be generated on demand.
+
+```typescript
+// src/types/Types.ts
+export type ImageType = {
+  id: number;
+  vendor_id: number;
+  url: string;        // Legacy field (may contain expired signed URL)
+  path?: string;      // NEW — e.g. "vendors/12/logo.png"
+  bucket?: string;    // NEW — e.g. "phandapay"
+  created_at: Date;
+  updated_at: Date;
+};
+```
+
+**ImageService** (`src/backend/services/ImageService.ts`) extends `TableService<ImageType>` and adds:
+
+```typescript
+async findByVendor(vendorId: number): Promise<ImageType | null>
+```
+
+---
+
+### Full Upload Flow (Vendor Logo Example)
+
+`VendorLogoManager` (`src/components/forms/VendorLogoManager.tsx`) demonstrates the complete upload cycle.
+
+**Step 1 — Validate the file (client-side)**
+
+```typescript
+LogoService.validateFile(selectedFile);
+// Validates: image types only (PNG, JPG, GIF, WebP), max 5 MB
+```
+
+**Step 2 — Build the storage path**
+
+```typescript
+const ext = selectedFile.name.split('.').pop()?.toLowerCase() || 'png';
+const path = `vendors/${vendorId}/logo.${ext}`;
+```
+
+**Step 3 — Upload to Skaftin storage**
+
+```typescript
+const uploadResult = await StorageService.uploadFile(
+  VENDOR_LOGO_BUCKET,   // 'phandapay'
+  path,                  // 'vendors/12/logo.png'
+  selectedFile
+);
+// uploadResult = { filePath, bucket, originalName, size, contentType }
+```
+
+Under the hood this sends:
+
+```
+POST /app-api/storage/files
+Content-Type: multipart/form-data; boundary=----…
+
+------…
+Content-Disposition: form-data; name="bucket"
+
+phandapay
+------…
+Content-Disposition: form-data; name="path"
+
+vendors/12/logo.png
+------…
+Content-Disposition: form-data; name="file"; filename="logo.png"
+Content-Type: image/png
+
+<binary data>
+------…--
+```
+
+**Step 4 — Get a signed URL for immediate display**
+
+```typescript
+const url = await StorageService.getFileDownloadUrl(
+  uploadResult.bucket,
+  uploadResult.filePath
+);
+// url = "http://…/phandapay/vendors/12/logo.png?X-Amz-Algorithm=…&X-Amz-Expires=3600&…"
+```
+
+**Step 5 — Persist path + bucket in the database (not the URL)**
+
+```typescript
+const existingImage = await ImageService.findByVendor(vendorIdNum);
+
+if (existingImage) {
+  await ImageService.update(existingImage.id, {
+    path: uploadResult.filePath,
+    bucket: uploadResult.bucket
+  });
+} else {
+  await ImageService.create({
+    vendor_id: vendorIdNum,
+    path: uploadResult.filePath,
+    bucket: uploadResult.bucket
+  });
+}
+```
+
+**Step 6 — Refresh the store so the UI updates**
+
+```typescript
+await fetchVendorImageData(sessionUser, vendorIdNum);
+```
+
+---
+
+### On-Demand URL Generation (ImagesStore)
+
+The `ImagesStore` (`src/stores/data/ImagesStore.ts`) generates fresh signed URLs every time data is fetched — never relying on a stored URL.
+
+**Single vendor image:**
+
+```typescript
+fetchVendorImageData: async (sessionUser, vendorId) => {
+  const data = await ImageService.findByVendor(vendorId);
+
+  if (data?.path && data?.bucket) {
+    const url = await StorageService.getFileDownloadUrl(data.bucket, data.path);
+    data.url = url;   // temporary signed URL (expires in 1 hour)
+  }
+
+  set({ vendorImageData: data });
+}
+```
+
+**All images (batch):**
+
+```typescript
+fetchImagesData: async (sessionUser) => {
+  const data = await ImageService.findAll();
+
+  const imagesWithUrls = await Promise.all(
+    data.map(async (image) => {
+      if (image.path && image.bucket) {
+        const url = await StorageService.getFileDownloadUrl(image.bucket, image.path);
+        return { ...image, url };
+      }
+      return image;
+    })
+  );
+
+  set({ imagesData: imagesWithUrls });
+}
+```
+
+---
+
+### Delete Flow
+
+Deletion removes both the storage objects **and** the database record:
+
+```typescript
+// 1. List all files under the vendor's prefix
+const files = await StorageService.listFiles(VENDOR_LOGO_BUCKET, `vendors/${vendorId}/`);
+
+// 2. Delete each file from storage
+for (const file of files) {
+  await StorageService.deleteFile(VENDOR_LOGO_BUCKET, file.key);
+}
+
+// 3. Remove the database record
+const existingImage = await ImageService.findByVendor(vendorIdNum);
+if (existingImage) {
+  await ImageService.delete(existingImage.id);
+}
+```
+
+---
+
+### Error Handling
+
+| Layer | Mechanism |
+|-------|-----------|
+| File validation | `LogoService.validateFile()` — checks type and size before upload |
+| HTTP errors | `SkaftinClient.request()` — throws with `status` and `data` on non-2xx |
+| 401 retry | SkaftinClient retries once after 500 ms if the user is authenticated |
+| UI feedback | `LogoService.handleApiError()` maps status codes to user-friendly messages |
 
 ---
 

@@ -73,12 +73,11 @@ export function BusinessSettingsTab() {
         registration_number: currentBusiness.registration_number || '',
       });
 
-      // Load existing logo — logo_url stores the file path, we build a fresh download URL
+      // Load existing logo — logo_url stores the file path, we get a fresh presigned URL
       if (currentBusiness.logo_url) {
-        const freshUrl = StorageService.getFileUrl(currentBusiness.logo_url);
-        StorageService.fetchFileAsObjectUrl(freshUrl).then((objectUrl) => {
-          if (objectUrl) {
-            setLogoPreview(objectUrl);
+        StorageService.getFileDownloadUrl(currentBusiness.logo_url).then((url) => {
+          if (url) {
+            setLogoPreview(url);
             setHasExistingLogo(true);
           }
         }).catch(() => {
