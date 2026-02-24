@@ -39,7 +39,7 @@ export const SKAFTIN_CONFIG = {
     forgotPassword: '/app-api/auth/forgot-password',
     verifyForgotPasswordOtp: '/app-api/auth/verify-forgot-password-otp',
     resetPassword: '/app-api/auth/reset-password',
-    sessionRefresh: '/auth/session/refresh',
+    sessionRefresh: '/app-api/auth/session/refresh',
   },
 } as const;
 

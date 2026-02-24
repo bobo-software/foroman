@@ -4,7 +4,64 @@ import toast from 'react-hot-toast';
 import { LuEye, LuEyeOff } from 'react-icons/lu';
 import { authService } from '../../services/authService';
 import useAuthStore from '../../stores/data/AuthStore';
+import { skaftinClient } from '../../backend';
+import { SKAFTIN_CONFIG } from '../../config/skaftin.config';
+import type { SessionUser } from '../../types/Types';
 import { AppButton } from '@components/ComponentsIndex';
+
+interface LoginApiShape {
+  data?: {
+    accessToken?: string;
+    session?: { accessToken?: string };
+    user?: {
+      id: number | string;
+      name?: string;
+      full_name?: string;
+      last_name?: string | null;
+      email: string;
+      phone?: string | null;
+      is_active?: boolean;
+      roles?: Array<{ role_key: string }>;
+    };
+    organisation_id?: number;
+    organisation_name?: string;
+    organisation?: { id?: number; name?: string; is_admin?: boolean };
+    is_admin?: boolean;
+  };
+}
+
+function mapNewLoginResponseToSessionUser(raw: LoginApiShape): SessionUser {
+  const payload = raw?.data ?? {};
+  const token = payload.session?.accessToken ?? payload.accessToken ?? '';
+  const user = payload.user;
+
+  if (!user || !token) {
+    throw new Error('Invalid login response');
+  }
+
+  const firstName = user.name ?? user.full_name ?? '';
+  const fullName =
+    [firstName, user.last_name].filter(Boolean).join(' ').trim() || firstName || user.email;
+  const role = user.roles?.[0]?.role_key ?? '';
+
+  return {
+    id: user.id,
+    email: user.email,
+    accessToken: token,
+    access: token,
+    association: payload.organisation_id ?? payload.organisation?.id ?? 0,
+    association_name: payload.organisation_name ?? payload.organisation?.name ?? '',
+    role,
+    name: fullName,
+    full_name: fullName,
+    last_name: user.last_name ?? undefined,
+    first_name: firstName || undefined,
+    phone: user.phone ?? null,
+    is_active: user.is_active,
+    roles: user.roles,
+    is_admin: payload.is_admin ?? payload.organisation?.is_admin ?? false,
+  };
+}
 
 export function Login() {
   const navigate = useNavigate();
@@ -21,6 +78,9 @@ export function Login() {
   const sessionUser = useAuthStore((s) => s.sessionUser);
   const accessToken = useAuthStore((s) => s.accessToken);
   const clearError = useAuthStore((s) => s.clearError);
+  const setLoading = useAuthStore((s) => s.setLoading);
+  const setError = useAuthStore((s) => s.setError);
+  const loginToStore = useAuthStore((s) => s.login);
 
   const isAuthenticated = !!(sessionUser?.accessToken || accessToken);
 
@@ -57,9 +117,36 @@ export function Login() {
       toast.success('Welcome back');
       navigate(from ?? '/app', { replace: true });
     } catch (err: unknown) {
-      // Error is already set in the store by authService
-      const message = err instanceof Error ? err.message : 'Login failed';
-      toast.error(message);
+      const isInvalidShape = err instanceof Error && err.message === 'Invalid login response';
+
+      if (!isInvalidShape) {
+        // Error is already set in the store by authService
+        const message = err instanceof Error ? err.message : 'Login failed';
+        toast.error(message);
+        return;
+      }
+
+      try {
+        // Fallback for new backend login payloads that return data.accessToken.
+        clearError();
+        setLoading(true);
+        const response = await skaftinClient.post<LoginApiShape['data']>(SKAFTIN_CONFIG.endpoints.login, {
+          username: email.trim(),
+          password,
+          method: 'email',
+        });
+        const session = mapNewLoginResponseToSessionUser(response as LoginApiShape);
+        loginToStore(session);
+        setLoading(false);
+        toast.success('Welcome back');
+        navigate(from ?? '/app', { replace: true });
+      } catch (fallbackErr: unknown) {
+        const fallbackMessage =
+          fallbackErr instanceof Error ? fallbackErr.message : 'Login failed';
+        setError(fallbackMessage);
+        setLoading(false);
+        toast.error(fallbackMessage);
+      }
     }
   };
 
