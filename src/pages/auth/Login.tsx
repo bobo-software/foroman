@@ -21,7 +21,14 @@ interface LoginApiShape {
       email: string;
       phone?: string | null;
       is_active?: boolean;
-      roles?: Array<{ role_key: string }>;
+      roles?: Array<{
+        id?: number;
+        role_name?: string;
+        role_key: string;
+        organisation_field_name?: string;
+        organisation_lookup_table?: string;
+        organisation_lookup_field?: string | null;
+      }>;
     };
     organisation_id?: number;
     organisation_name?: string;
@@ -43,6 +50,13 @@ function mapNewLoginResponseToSessionUser(raw: LoginApiShape): SessionUser {
   const fullName =
     [firstName, user.last_name].filter(Boolean).join(' ').trim() || firstName || user.email;
   const role = user.roles?.[0]?.role_key ?? '';
+  const normalizedRoles = user.roles
+    ?.filter(
+      (r): r is NonNullable<SessionUser['roles']>[number] =>
+        typeof r.id === 'number' &&
+        typeof r.role_name === 'string' &&
+        typeof r.role_key === 'string'
+    );
 
   return {
     id: user.id,
@@ -58,7 +72,7 @@ function mapNewLoginResponseToSessionUser(raw: LoginApiShape): SessionUser {
     first_name: firstName || undefined,
     phone: user.phone ?? null,
     is_active: user.is_active,
-    roles: user.roles,
+    roles: normalizedRoles?.length ? normalizedRoles : undefined,
     is_admin: payload.is_admin ?? payload.organisation?.is_admin ?? false,
   };
 }
