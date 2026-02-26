@@ -27,9 +27,28 @@ The `.env` file is gitignored. Without valid Skaftin credentials, the frontend w
 | Lint | `npm run lint` |
 | Preview prod build | `npm run preview` |
 
+### Testing
+
+The project uses Vitest + React Testing Library. Tests live alongside source files (`*.test.ts` / `*.test.tsx`).
+
+| Task | Command |
+|------|---------|
+| Run tests | `npm test` |
+| Watch mode | `npm run test:watch` |
+| Coverage | `npm run test:coverage` |
+
+### Architecture notes
+
+- **Code splitting**: All authenticated routes are lazy-loaded via `React.lazy` in `App.tsx`. The landing page, login, and register routes are eagerly loaded.
+- **Error Boundary**: `src/components/ErrorBoundary.tsx` wraps the entire app in `App.tsx`. It shows a recovery UI with "Try again" and "Go to Dashboard" buttons.
+- **Environment validation**: `src/config/env.ts` uses Zod to validate `VITE_*` env vars at startup. In dev mode it falls back to defaults; in production it throws on invalid config.
+- **Validation schemas**: `src/validation/schemas.ts` exports Zod schemas for all entities (invoice, quotation, company, item, payment, auth). Import and use `schema.safeParse(data)` in forms/services.
+- **API client**: `SkaftinClient` has retry with exponential backoff (3 retries, jitter), 30s request timeout via AbortController, and GET request deduplication.
+- **Accessibility**: Skip-to-content link in `main.tsx`, `id="main-content"` on the main content area in `AppLayout.tsx`.
+
 ### Gotchas
 
 - The ESLint config was renamed from `eslint.config.js` to `eslint.config.cjs` because the project uses `"type": "module"` in `package.json` but the ESLint config uses CommonJS `require()` syntax. If you see ESLint failures about `require is not defined`, ensure the config file has the `.cjs` extension.
 - `eslint-plugin-react` is needed as a devDependency (it's referenced in the ESLint config). If `npm install` doesn't install it, run `npm install --save-dev eslint-plugin-react`.
 - The project uses `rolldown-vite` (aliased as `vite` via npm overrides). This requires Node 20.19+ or 22.12+.
-- There are no automated tests in this repo — validation is done via lint, TypeScript type-checking (`tsc -b`), and manual browser testing.
+- The project uses Zod v4, which has a different API from v3. Use `{ message: '...' }` instead of `{ required_error: '...' }` in schema constructors.
