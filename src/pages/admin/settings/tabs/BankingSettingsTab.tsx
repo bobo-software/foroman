@@ -5,6 +5,14 @@ import type { BankingDetails, CreateBankingDetailsDto } from '@/types/bankingDet
 import { SA_BANKS, ACCOUNT_TYPES } from '@/types/bankingDetails';
 import toast from 'react-hot-toast';
 
+function getBankingErrorMessage(err: unknown, fallback: string): string {
+  const message = err instanceof Error ? err.message : '';
+  if (message.includes('No encryption key / secret found')) {
+    return 'Field encryption is not configured for this project. Ask an admin to set the encryption key in Skaftin settings.';
+  }
+  return message || fallback;
+}
+
 export function BankingSettingsTab() {
   const currentBusiness = useBusinessStore((s) => s.currentBusiness);
   const loading = useBusinessStore((s) => s.loading);
@@ -47,8 +55,8 @@ export function BankingSettingsTab() {
             is_active: primaryDetails.is_active ?? true,
           });
         }
-      }).catch(() => {
-        // Silently fail
+      }).catch((err: unknown) => {
+        toast.error(getBankingErrorMessage(err, 'Failed to load banking details'));
       });
     }
   }, [currentBusiness?.user_id]);
@@ -107,8 +115,8 @@ export function BankingSettingsTab() {
       }
 
       toast.success('Banking details updated');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update banking details');
+    } catch (err: unknown) {
+      toast.error(getBankingErrorMessage(err, 'Failed to update banking details'));
     } finally {
       setSaving(false);
     }

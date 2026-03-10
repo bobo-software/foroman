@@ -5,6 +5,7 @@ import CompanyService from '@/services/companyService';
 import { useBusinessStore } from '@/stores/data/BusinessStore';
 import QuotationService from '@/services/quotationService';
 import ItemService from '@/services/itemService';
+import BankingDetailsService from '@/services/bankingDetailsService';
 import type { Invoice } from '@/types/invoice';
 import { formatCurrency } from '@/utils/currency';
 import {
@@ -48,6 +49,9 @@ function StatCard({ title, value, icon, to, loading }: StatCardProps) {
 }
 
 export function DashboardPage() {
+  const currentBusiness = useBusinessStore((s) => s.currentBusiness);
+  const businessLoading = useBusinessStore((s) => s.loading);
+  const businesses = useBusinessStore((s) => s.businesses);
   const businessId = useBusinessStore((s) => s.currentBusiness?.id);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -58,6 +62,8 @@ export function DashboardPage() {
   });
   const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
   const [recentError, setRecentError] = useState<string | null>(null);
+  const [hasBankingDetails, setHasBankingDetails] = useState(false);
+  const [bankingLoading, setBankingLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,6 +100,32 @@ export function DashboardPage() {
     };
   }, [businessId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const userId = currentBusiness?.user_id;
+    if (!userId) {
+      setHasBankingDetails(false);
+      setBankingLoading(false);
+      return;
+    }
+
+    setBankingLoading(true);
+    BankingDetailsService.findByUserId(Number(userId))
+      .then((rows) => {
+        if (!cancelled) setHasBankingDetails(rows.length > 0);
+      })
+      .catch(() => {
+        if (!cancelled) setHasBankingDetails(false);
+      })
+      .finally(() => {
+        if (!cancelled) setBankingLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentBusiness?.user_id]);
+
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString();
 
   return (
@@ -102,6 +134,35 @@ export function DashboardPage() {
         <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Dashboard</h1>
         <p className="mt-1 text-slate-600 dark:text-slate-400">Overview of your CRM and sales activity.</p>
       </div>
+
+      {!businessLoading && businesses.length === 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+          <p className="font-medium">Company setup required</p>
+          <p className="mt-1">
+            You have not registered your company yet.{' '}
+            <Link to="/onboard" className="font-medium underline text-amber-900 dark:text-amber-100">
+              Register your company
+            </Link>{' '}
+            to start using settings and documents.
+          </p>
+        </div>
+      )}
+
+      {!businessLoading && !!currentBusiness && !bankingLoading && !hasBankingDetails && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+          <p className="font-medium">Banking details missing</p>
+          <p className="mt-1">
+            Add your banking details so customers can pay you from invoices and documents.{' '}
+            <Link
+              to="/app/settings/banking"
+              className="font-medium underline text-amber-900 dark:text-amber-100"
+            >
+              Open banking settings
+            </Link>
+            .
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard

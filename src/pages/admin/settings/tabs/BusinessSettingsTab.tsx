@@ -39,7 +39,7 @@ export function BusinessSettingsTab() {
   // Address state
   const [existingAddress, setExistingAddress] = useState<Address | null>(null);
   const [addressForm, setAddressForm] = useState<CreateAddressDto>({
-    user_id: currentBusiness?.user_id,
+    company_id: currentBusiness?.id,
     label: 'Business Address',
     street_address: '',
     street_address_2: '',
@@ -87,14 +87,14 @@ export function BusinessSettingsTab() {
         });
       }
 
-      // Fetch address for this business's user
-      if (currentBusiness.user_id) {
-        AddressService.findByUserId(currentBusiness.user_id).then((addresses) => {
+      // Fetch address for this company
+      if (currentBusiness.id) {
+        AddressService.findByCompanyId(currentBusiness.id).then((addresses) => {
           if (addresses.length > 0) {
             const primaryAddress = addresses.find(a => a.is_primary) || addresses[0];
             setExistingAddress(primaryAddress);
             setAddressForm({
-              user_id: currentBusiness.user_id,
+              company_id: currentBusiness.id,
               label: primaryAddress.label ?? 'Business Address',
               street_address: primaryAddress.street_address ?? '',
               street_address_2: primaryAddress.street_address_2 ?? '',
@@ -235,7 +235,7 @@ export function BusinessSettingsTab() {
 
       // Save address (create or update)
       const addressData: CreateAddressDto = {
-        user_id: currentBusiness.user_id,
+        company_id: currentBusiness.id,
         label: addressForm.label?.trim() || 'Business Address',
         street_address: addressForm.street_address?.trim() || undefined,
         street_address_2: addressForm.street_address_2?.trim() || undefined,
@@ -252,7 +252,7 @@ export function BusinessSettingsTab() {
       const hasAddressData = addressData.street_address || addressData.suburb || 
         addressData.town || addressData.city || addressData.province || addressData.postal_code;
 
-      if (hasAddressData && currentBusiness.user_id) {
+      if (hasAddressData && currentBusiness.id) {
         if (existingAddress?.id) {
           await AddressService.update(existingAddress.id, addressData);
         } else {
@@ -570,7 +570,6 @@ function CreateBusinessForm() {
     tax_id: '',
     vat_number: '',
     registration_number: '',
-    banking_details: '',
   });
 
   const [addressForm, setAddressForm] = useState({
@@ -623,7 +622,6 @@ function CreateBusinessForm() {
         tax_id: form.tax_id.trim() || undefined,
         vat_number: form.vat_number.trim() || undefined,
         registration_number: form.registration_number.trim() || undefined,
-        banking_details: form.banking_details.trim() || undefined,
       });
 
       // Link the new business to the current user
@@ -636,7 +634,7 @@ function CreateBusinessForm() {
       if (hasAddressData) {
         try {
           await AddressService.create({
-            user_id: Number(sessionUser.id),
+            company_id: Number(business.id),
             label: 'Business Address',
             street_address: addressForm.street_address.trim() || undefined,
             street_address_2: addressForm.street_address_2.trim() || undefined,
@@ -827,24 +825,6 @@ function CreateBusinessForm() {
               />
             </div>
           </div>
-        </div>
-
-        {/* Banking Details */}
-        <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-            Banking Details
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-            These details will appear on invoices for payment purposes.
-          </p>
-          <textarea
-            id="create-banking"
-            rows={3}
-            value={form.banking_details}
-            onChange={(e) => handleChange('banking_details', e.target.value)}
-            className={inputClass}
-            placeholder={"Bank: FNB\nAccount: 1234567890\nBranch: 250655\nAccount Holder: Acme Ltd"}
-          />
         </div>
 
         {/* Actions */}

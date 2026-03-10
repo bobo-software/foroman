@@ -4,6 +4,8 @@
 
 export interface Company {
   id?: number;
+  user_id?: number;
+  is_owner_company?: boolean;
   business_id?: number;
   /** Company / business name (primary identifier) */
   name: string;
@@ -34,6 +36,8 @@ export interface Company {
 }
 
 export interface CreateCompanyDto {
+  user_id?: number;
+  is_owner_company?: boolean;
   business_id?: number;
   name: string;
   email?: string;

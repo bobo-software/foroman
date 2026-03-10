@@ -53,6 +53,37 @@ export class CompanyService {
     return response.data;
   }
 
+  static async findOwnerCompanyByUserId(userId: number): Promise<Company | null> {
+    const rows = await this.findAll({
+      where: { user_id: userId, is_owner_company: true },
+      orderBy: 'id',
+      orderDirection: 'ASC',
+      limit: 1,
+    });
+    return rows[0] ?? null;
+  }
+
+  static async getOwnerCompaniesForUser(userId: number): Promise<Company[]> {
+    return this.findAll({
+      where: { user_id: userId, is_owner_company: true },
+      orderBy: 'id',
+      orderDirection: 'ASC',
+      limit: 50,
+    });
+  }
+
+  static async createOwnerCompany(userId: number, data: CreateCompanyDto): Promise<Company> {
+    return this.create({
+      ...data,
+      user_id: userId,
+      is_owner_company: true,
+    });
+  }
+
+  static async updateOwnerCompany(companyId: number, data: Partial<CreateCompanyDto>): Promise<{ rowCount: number }> {
+    return this.update(companyId, data);
+  }
+
   static async update(id: number, data: Partial<CreateCompanyDto>): Promise<{ rowCount: number }> {
     const response = await skaftinClient.put<{ rowCount: number }>(
       `/app-api/database/tables/${TABLE_NAME}/update`,

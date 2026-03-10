@@ -1,9 +1,77 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import useAuthStore from '@stores/data/AuthStore';
 import { useBusinessStore } from '@stores/data/BusinessStore';
-import BusinessService from '@/services/businessService';
+import CompanyService from '@/services/companyService';
+import AddressService from '@/services/addressService';
+import type { CreateAddressDto } from '@/types/address';
+import type { CreateCompanyDto } from '@/types/company';
+
+declare global {
+  interface Window {
+    google?: any;
+    __foromanGoogleMapsPromise?: Promise<void>;
+  }
+}
+
+const SA_PROVINCES = [
+  { value: '', label: 'Select province…' },
+  { value: 'Eastern Cape', label: 'Eastern Cape' },
+  { value: 'Free State', label: 'Free State' },
+  { value: 'Gauteng', label: 'Gauteng' },
+  { value: 'KwaZulu-Natal', label: 'KwaZulu-Natal' },
+  { value: 'Limpopo', label: 'Limpopo' },
+  { value: 'Mpumalanga', label: 'Mpumalanga' },
+  { value: 'Northern Cape', label: 'Northern Cape' },
+  { value: 'North West', label: 'North West' },
+  { value: 'Western Cape', label: 'Western Cape' },
+];
+
+function loadGoogleMapsPlaces(apiKey: string): Promise<void> {
+  if (window.google?.maps?.places) return Promise.resolve();
+  if (window.__foromanGoogleMapsPromise) return window.__foromanGoogleMapsPromise;
+
+  window.__foromanGoogleMapsPromise = new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Google Maps Places'));
+    document.head.appendChild(script);
+  });
+
+  return window.__foromanGoogleMapsPromise;
+}
+
+function parseGooglePlace(place: any): Partial<CreateAddressDto> {
+  const components = place?.address_components ?? [];
+  const byType = (type: string) =>
+    components.find((c: any) => Array.isArray(c.types) && c.types.includes(type));
+
+  const streetNumber = byType('street_number')?.long_name ?? '';
+  const route = byType('route')?.long_name ?? '';
+  const streetAddress = [streetNumber, route].filter(Boolean).join(' ').trim();
+  const suburb = byType('sublocality_level_1')?.long_name ?? byType('neighborhood')?.long_name ?? '';
+  const city =
+    byType('locality')?.long_name ??
+    byType('postal_town')?.long_name ??
+    byType('administrative_area_level_2')?.long_name ??
+    '';
+  const province = byType('administrative_area_level_1')?.long_name ?? '';
+  const postalCode = byType('postal_code')?.long_name ?? '';
+  const country = byType('country')?.long_name ?? 'South Africa';
+
+  return {
+    street_address: streetAddress || place?.formatted_address || '',
+    suburb,
+    city,
+    province,
+    postal_code: postalCode,
+    country,
+  };
+}
 
 export function Onboard() {
   const navigate = useNavigate();
@@ -13,13 +81,32 @@ export function Onboard() {
   const fetchUserBusinesses = useBusinessStore((s) => s.fetchUserBusinesses);
 
   const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [taxId, setTaxId] = useState('');
   const [vatNumber, setVatNumber] = useState('');
   const [registrationNumber, setRegistrationNumber] = useState('');
-  const [bankingDetails, setBankingDetails] = useState('');
+  const [existingAddressId, setExistingAddressId] = useState<number | null>(null);
+  const [addressLookup, setAddressLookup] = useState('');
+  const [addressForm, setAddressForm] = useState<CreateAddressDto>({
+    label: 'Business Address',
+    street_address: '',
+    street_address_2: '',
+    suburb: '',
+    town: '',
+    city: '',
+    province: '',
+    country: 'South Africa',
+    postal_code: '',
+    is_primary: true,
+    address_type: 'physical',
+  });
   const [loading, setLoading] = useState(false);
+  const [mapsStatus, setMapsStatus] = useState<'idle' | 'ready' | 'failed'>('idle');
+  const googleMapsApiKey = useMemo(
+    () => String(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '').trim(),
+    []
+  );
+  const addressLookupRef = useRef<HTMLInputElement | null>(null);
 
   const isEditMode = !!currentBusiness;
 
@@ -27,14 +114,93 @@ export function Onboard() {
   useEffect(() => {
     if (currentBusiness) {
       setName(currentBusiness.name || '');
-      setAddress(currentBusiness.address || '');
       setPhone(currentBusiness.phone || '');
       setTaxId(currentBusiness.tax_id || '');
       setVatNumber(currentBusiness.vat_number || '');
       setRegistrationNumber(currentBusiness.registration_number || '');
-      setBankingDetails(currentBusiness.banking_details || '');
     }
   }, [currentBusiness]);
+
+  useEffect(() => {
+    const companyId = currentBusiness?.id;
+    if (!companyId) return;
+
+    AddressService.findByCompanyId(companyId)
+      .then((addresses) => {
+        const primary = addresses.find((a) => a.is_primary) || addresses[0];
+        if (!primary) return;
+        setExistingAddressId(primary.id ?? null);
+        const nextAddress: CreateAddressDto = {
+          company_id: companyId,
+          label: primary.label ?? 'Business Address',
+          street_address: primary.street_address ?? '',
+          street_address_2: primary.street_address_2 ?? '',
+          suburb: primary.suburb ?? '',
+          town: primary.town ?? '',
+          city: primary.city ?? '',
+          province: primary.province ?? '',
+          country: primary.country ?? 'South Africa',
+          postal_code: primary.postal_code ?? '',
+          is_primary: primary.is_primary ?? true,
+          address_type: primary.address_type ?? 'physical',
+        };
+        setAddressForm(nextAddress);
+        const lookupText = [
+          nextAddress.street_address,
+          nextAddress.suburb,
+          nextAddress.city || nextAddress.town,
+          nextAddress.province,
+          nextAddress.postal_code,
+          nextAddress.country,
+        ]
+          .filter(Boolean)
+          .join(', ');
+        setAddressLookup(lookupText);
+      })
+      .catch(() => {
+        // Non-blocking: user can still continue and enter address manually.
+      });
+  }, [currentBusiness?.id]);
+
+  useEffect(() => {
+    if (!googleMapsApiKey || !addressLookupRef.current) {
+      if (!googleMapsApiKey) setMapsStatus('failed');
+      return;
+    }
+
+    let autocomplete: any;
+    let mounted = true;
+
+    loadGoogleMapsPlaces(googleMapsApiKey)
+      .then(() => {
+        if (!mounted || !window.google?.maps?.places || !addressLookupRef.current) return;
+        autocomplete = new window.google.maps.places.Autocomplete(addressLookupRef.current, {
+          fields: ['formatted_address', 'address_components'],
+          types: ['address'],
+        });
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          const parsed = parseGooglePlace(place);
+          setAddressLookup(place?.formatted_address ?? '');
+          setAddressForm((prev) => ({ ...prev, ...parsed }));
+        });
+        setMapsStatus('ready');
+      })
+      .catch(() => {
+        if (mounted) setMapsStatus('failed');
+      });
+
+    return () => {
+      mounted = false;
+      if (autocomplete && window.google?.maps?.event) {
+        window.google.maps.event.clearInstanceListeners(autocomplete);
+      }
+    };
+  }, [googleMapsApiKey]);
+
+  const handleAddressChange = (field: keyof CreateAddressDto, value: string | boolean) => {
+    setAddressForm((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,23 +215,54 @@ export function Onboard() {
     }
     setLoading(true);
     try {
-      const payload = {
+      const payload: CreateCompanyDto = {
         name: name.trim(),
-        address: address.trim() || undefined,
         phone: phone.trim() || undefined,
         tax_id: taxId.trim() || undefined,
         vat_number: vatNumber.trim() || undefined,
         registration_number: registrationNumber.trim() || undefined,
-        banking_details: bankingDetails.trim() || undefined,
       };
+      let companyId = currentBusiness?.id;
 
-      if (isEditMode && currentBusiness?.id) {
-        await BusinessService.update(currentBusiness.id, payload);
-        toast.success('Business updated');
+      if (isEditMode && companyId) {
+        await CompanyService.updateOwnerCompany(companyId, payload);
+        toast.success('Company updated');
       } else {
-        const business = await BusinessService.create(payload);
-        await BusinessService.linkUserToBusiness(Number(sessionUser.id), business.id!);
-        toast.success('Business saved');
+        const company = await CompanyService.createOwnerCompany(Number(sessionUser.id), payload);
+        companyId = Number(company.id);
+        toast.success('Company saved');
+      }
+
+      const hasAddressData =
+        addressForm.street_address ||
+        addressForm.suburb ||
+        addressForm.town ||
+        addressForm.city ||
+        addressForm.province ||
+        addressForm.postal_code;
+
+      if (companyId && hasAddressData) {
+        const addressData: CreateAddressDto = {
+          company_id: companyId,
+          label: addressForm.label?.trim() || 'Business Address',
+          street_address: addressForm.street_address?.trim() || undefined,
+          street_address_2: addressForm.street_address_2?.trim() || undefined,
+          suburb: addressForm.suburb?.trim() || undefined,
+          town: addressForm.town?.trim() || undefined,
+          city: addressForm.city?.trim() || undefined,
+          province: addressForm.province || undefined,
+          country: addressForm.country?.trim() || 'South Africa',
+          postal_code: addressForm.postal_code?.trim() || undefined,
+          is_primary: true,
+          address_type: 'physical',
+        };
+
+        if (existingAddressId) {
+          await AddressService.update(existingAddressId, addressData);
+        } else {
+          const createdAddress = await AddressService.create(addressData);
+          setExistingAddressId(createdAddress.id ?? null);
+        }
       }
 
       await fetchUserBusinesses(Number(sessionUser.id));
@@ -79,7 +276,7 @@ export function Onboard() {
   };
 
   const handleSkip = () => {
-    toast.success('You can add your business later in Settings');
+    toast.success('You can add your company later in Settings');
     navigate(isLoggedIn ? '/app/dashboard' : '/login', { replace: true });
   };
 
@@ -95,12 +292,12 @@ export function Onboard() {
             Foroman
           </Link>
           <h2 className="mt-4 text-xl font-semibold text-slate-800 dark:text-slate-100">
-            {isEditMode ? 'Edit business details' : 'Business details'}
+            {isEditMode ? 'Edit company details' : 'Company details'}
           </h2>
           <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
             {isEditMode
-              ? 'Update your business information that appears on quotes and invoices.'
-              : 'Add your business now or skip and do it later.'}
+              ? 'Update your company information that appears on quotes and invoices.'
+              : 'Add your company now or skip and do it later.'}
           </p>
         </div>
 
@@ -109,7 +306,7 @@ export function Onboard() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label htmlFor="businessName" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Business name *
+                Company name *
               </label>
               <input
                 id="businessName"
@@ -122,17 +319,98 @@ export function Onboard() {
             </div>
 
             <div className="sm:col-span-2">
-              <label htmlFor="address" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Address
+              <label htmlFor="addressLookup" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Address lookup
               </label>
-              <textarea
-                id="address"
-                rows={2}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
+              <input
+                id="addressLookup"
+                ref={addressLookupRef}
+                type="text"
+                value={addressLookup}
+                onChange={(e) => setAddressLookup(e.target.value)}
                 className={inputClass}
-                placeholder="123 Main St, City, Province, Postal Code"
+                placeholder="Start typing your company address"
               />
+              {mapsStatus === 'ready' && (
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Select a suggestion to auto-fill address fields.
+                </p>
+              )}
+              {mapsStatus === 'failed' && (
+                <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                  Google address lookup unavailable. Fill the fields below manually.
+                </p>
+              )}
+            </div>
+
+            <div className="sm:col-span-2 grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label htmlFor="streetAddress" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Street address
+                </label>
+                <input
+                  id="streetAddress"
+                  type="text"
+                  value={addressForm.street_address ?? ''}
+                  onChange={(e) => handleAddressChange('street_address', e.target.value)}
+                  className={inputClass}
+                  placeholder="123 Main Street"
+                />
+              </div>
+              <div>
+                <label htmlFor="suburb" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Suburb
+                </label>
+                <input
+                  id="suburb"
+                  type="text"
+                  value={addressForm.suburb ?? ''}
+                  onChange={(e) => handleAddressChange('suburb', e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="city" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  City
+                </label>
+                <input
+                  id="city"
+                  type="text"
+                  value={addressForm.city ?? ''}
+                  onChange={(e) => handleAddressChange('city', e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="province" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Province
+                </label>
+                <select
+                  id="province"
+                  value={addressForm.province ?? ''}
+                  onChange={(e) => handleAddressChange('province', e.target.value)}
+                  className={inputClass}
+                >
+                  {SA_PROVINCES.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="postalCode" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Postal code
+                </label>
+                <input
+                  id="postalCode"
+                  type="text"
+                  value={addressForm.postal_code ?? ''}
+                  onChange={(e) => handleAddressChange('postal_code', e.target.value)}
+                  className={inputClass}
+                  placeholder="0001"
+                />
+              </div>
             </div>
 
             <div>
@@ -191,22 +469,6 @@ export function Onboard() {
               />
             </div>
 
-            <div className="sm:col-span-2">
-              <label htmlFor="bankingDetails" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Banking details
-              </label>
-              <textarea
-                id="bankingDetails"
-                rows={3}
-                value={bankingDetails}
-                onChange={(e) => setBankingDetails(e.target.value)}
-                className={inputClass}
-                placeholder="Bank: FNB&#10;Account: 1234567890&#10;Branch: 250655&#10;Account Holder: Acme Ltd"
-              />
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                This will appear on your quotations and invoices for customers to make payment.
-              </p>
-            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">

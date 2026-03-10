@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import BusinessService from '../../services/businessService';
+import CompanyService from '../../services/companyService';
 import type { Business } from '../../types/business';
 
 interface BusinessState {
@@ -20,7 +20,7 @@ export const useBusinessStore = create<BusinessState>((set, get) => ({
   fetchUserBusinesses: async (userId: number) => {
     set({ loading: true, error: null });
     try {
-      const businesses = await BusinessService.getBusinessesForUser(userId);
+      const businesses = (await CompanyService.getOwnerCompaniesForUser(userId)) as Business[];
       set({
         businesses,
         currentBusiness: businesses[0] || null,

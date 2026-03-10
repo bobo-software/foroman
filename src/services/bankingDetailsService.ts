@@ -7,6 +7,12 @@ import { skaftinClient } from '../backend';
 import type { BankingDetails, CreateBankingDetailsDto } from '../types/bankingDetails';
 
 const TABLE_NAME = 'banking_details';
+const SENSITIVE_BANKING_FIELDS: Array<keyof CreateBankingDetailsDto> = [
+  'account_number',
+  'account_holder',
+  'branch_code',
+  'branch_name',
+];
 
 export class BankingDetailsService {
   static async findAll(params?: {
@@ -24,6 +30,7 @@ export class BankingDetailsService {
         ...(params?.where && { where: params.where }),
         ...(params?.orderBy && { orderBy: params.orderBy }),
         ...(params?.orderDirection && { orderDirection: params.orderDirection }),
+        decrypt: SENSITIVE_BANKING_FIELDS,
       }
     );
     const data = response.data;
@@ -46,6 +53,7 @@ export class BankingDetailsService {
         where: { id },
         limit: 1,
         offset: 0,
+        decrypt: SENSITIVE_BANKING_FIELDS,
       }
     );
     const data = response.data;
@@ -56,7 +64,10 @@ export class BankingDetailsService {
   static async create(data: CreateBankingDetailsDto): Promise<BankingDetails> {
     const response = await skaftinClient.post<BankingDetails>(
       `/app-api/database/tables/${TABLE_NAME}/insert`,
-      { data }
+      {
+        data,
+        encrypt: ['account_number'],
+      }
     );
     return response.data;
   }
@@ -70,6 +81,7 @@ export class BankingDetailsService {
           ...data,
           updated_at: new Date().toISOString(),
         },
+        encrypt: SENSITIVE_BANKING_FIELDS,
       }
     );
     return response.data;

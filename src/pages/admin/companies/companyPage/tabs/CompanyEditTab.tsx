@@ -10,7 +10,7 @@ import type { Company, CreateCompanyDto } from '@/types/company';
 import type { Address, CreateAddressDto } from '@/types/address';
 import type { BankingDetails, CreateBankingDetailsDto } from '@/types/bankingDetails';
 import { SA_BANKS, ACCOUNT_TYPES } from '@/types/bankingDetails';
-import { DeleteConfirmationModal } from '@/components/ComponentsIndex';
+import { AppButton, DeleteConfirmationModal } from '@/components/ComponentsIndex';
 import type { ConfirmationMode } from '@/components/modals/DeleteConfirmationModal';
 import toast from 'react-hot-toast';
 
@@ -852,22 +852,12 @@ export function CompanyEditTab({ company, onCompanyUpdate, onCompanyDelete }: Co
           </p>
         )}
         <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => openDeleteModal('button')}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-400 bg-white dark:bg-slate-800 border border-red-300 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-          >
-            <LuTrash2 className="w-4 h-4" />
-            Quick Delete
-          </button>
-          <button
-            type="button"
+          <AppButton
+          icon={<LuTrash2 className="w-4 h-4" />}
+            label="Delete with Confirmation"
+            variant="red"
             onClick={() => openDeleteModal('type')}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 rounded-lg transition-colors"
-          >
-            <LuTrash2 className="w-4 h-4" />
-            Delete with Confirmation
-          </button>
+          />
         </div>
       </div>
 

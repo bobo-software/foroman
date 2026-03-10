@@ -19,7 +19,7 @@ export function AppLayout() {
 
   return (
     <div
-      className={`flex min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100 ${isDark ? 'dark' : ''}`}
+      className={`flex h-screen bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100 ${isDark ? 'dark' : ''}`}
       data-theme={theme}
     >
       <AppSidebar />

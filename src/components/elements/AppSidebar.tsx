@@ -62,7 +62,7 @@ const AppSidebar = () => {
           <span className="text-xl font-bold tracking-tight truncate">{businessName}</span>
         </Link>
       </div>
-      <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
         {navLink('/app/dashboard', 'Dashboard')}
         {navLink('/app/companies', 'Companies')}
         {navLink('/app/items', 'Stock')}
@@ -72,12 +72,7 @@ const AppSidebar = () => {
         {navLink('/app/statements', 'Statements')}
       </nav>
       <div className={`px-3 py-4 border-t ${borderCls} space-y-1`}>
-        <p className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          Settings
-        </p>
-        {navLink('/app/settings', 'Business')}
-        {navLink('/app/settings/banking', 'Banking')}
-        {navLink('/app/settings/preferences', 'Preferences')}
+        {navLink('/app/settings', 'Settings')}
       </div>
     </aside>
   );
