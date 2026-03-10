@@ -38,6 +38,7 @@ jobs:
             VITE_SKAFTIN_ACCESS_TOKEN=${{ secrets.VITE_SKAFTIN_ACCESS_TOKEN }}
             VITE_SKAFTIN_API_KEY=${{ secrets.VITE_SKAFTIN_API_KEY }}
             VITE_SKAFTIN_API_URL=${{ secrets.VITE_SKAFTIN_API_URL }}
+            VITE_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
           tags: |
             dr.bobosoftware.co.za/foroman:latest
             dr.bobosoftware.co.za/foroman:${{ env.VERSION != '' && env.VERSION || env.BRANCH_TAG }}

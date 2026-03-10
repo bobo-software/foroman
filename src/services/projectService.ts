@@ -57,7 +57,7 @@ export class ProjectService {
       `/app-api/database/tables/${TABLE_NAME}/insert`,
       { data }
     );
-    const r = response as Record<string, unknown>;
+    const r = response as unknown as Record<string, unknown>;
     const inserted = (Array.isArray(r?.data) ? r?.data?.[0] : r?.data) ?? r;
     return normalizeProject(inserted as Record<string, unknown>);
   }
@@ -67,7 +67,7 @@ export class ProjectService {
       `/app-api/database/tables/${TABLE_NAME}/update`,
       { where: { id }, data }
     );
-    const r = response as Record<string, unknown>;
+    const r = response as unknown as Record<string, unknown>;
     return { rowCount: (r?.rowCount as number) ?? 0 };
   }
 
@@ -76,7 +76,7 @@ export class ProjectService {
       `/app-api/database/tables/${TABLE_NAME}/delete`,
       { where: { id } }
     );
-    const r = response as Record<string, unknown>;
+    const r = response as unknown as Record<string, unknown>;
     return { rowCount: (r?.rowCount as number) ?? 0 };
   }
 }

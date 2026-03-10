@@ -26,6 +26,7 @@ Create a `.env` file in the root directory:
 ```env
 VITE_SKAFTIN_API_URL=http://localhost:4006
 VITE_SKAFTIN_API_KEY=sk_your_api_key_here
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 ```
 
 See `.env.example` for reference.
@@ -130,6 +131,7 @@ See `client-sdk/` directory for detailed SDK documentation.
 - `VITE_SKAFTIN_API_KEY`: API key for authentication
 - `VITE_SKAFTIN_ACCESS_TOKEN`: Alternative to API key
 - `VITE_SKAFTIN_PROJECT_ID`: Optional project ID (auto-detected)
+- `VITE_GOOGLE_MAPS_API_KEY`: Google Maps Places API key (used for company address autocomplete)
 
 ## License
 

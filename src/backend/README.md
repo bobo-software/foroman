@@ -28,6 +28,8 @@ Create a `.env` file in the project root with:
 ```env
 VITE_SKAFTIN_API_URL=http://localhost:4006
 VITE_SKAFTIN_API_KEY=sk_your_api_key_here
+# Optional: used by address autocomplete on company forms
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 # OR
 # VITE_SKAFTIN_ACCESS_TOKEN=sat_your_token_here
 ```

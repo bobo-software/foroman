@@ -10,6 +10,7 @@ const envSchema = z
     VITE_SKAFTIN_API: z.string().optional().default(''),
     VITE_SKAFTIN_ACCESS_TOKEN: z.string().optional().default(''),
     VITE_SKAFTIN_PROJECT_ID: z.string().optional().default(''),
+    VITE_GOOGLE_MAPS_API_KEY: z.string().optional().default(''),
   })
   .refine(
     (v) => !!(v.VITE_SKAFTIN_API_KEY || v.VITE_SKAFTIN_API || v.VITE_SKAFTIN_ACCESS_TOKEN),
@@ -28,6 +29,7 @@ function parseEnv(): Env {
     VITE_SKAFTIN_API: import.meta.env.VITE_SKAFTIN_API,
     VITE_SKAFTIN_ACCESS_TOKEN: import.meta.env.VITE_SKAFTIN_ACCESS_TOKEN,
     VITE_SKAFTIN_PROJECT_ID: import.meta.env.VITE_SKAFTIN_PROJECT_ID,
+    VITE_GOOGLE_MAPS_API_KEY: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
   };
 
   const result = envSchema.safeParse(raw);
