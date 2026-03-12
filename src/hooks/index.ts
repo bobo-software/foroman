@@ -16,4 +16,4 @@ export {
 } from './useWebSocket';
 
 // WebSocket context hooks
-export { useWebSocketContext, useProjectId } from '../components/WebSocketProvider';
+export { useWebSocketContext, useProjectId } from '../components/websocket/WebSocketProvider';

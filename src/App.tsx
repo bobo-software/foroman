@@ -1,9 +1,9 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { AuthProvider } from './components/AuthProvider';
+import { AuthProvider } from './components/auth/AuthProvider';
 import { ProtectedRoute } from './components/elements/ProtectedRoute';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { RouteLoadingFallback } from './components/RouteLoadingFallback';
+import { ErrorBoundary } from './components/error/ErrorBoundary';
+import { RouteLoadingFallback } from './components/error/RouteLoadingFallback';
 import { useAuthSync } from './hooks/useAuthSync';
 import { useTokenRefresh } from './hooks/useTokenRefresh';
 import { webSocketService } from './backend/services/WebSocketService';
@@ -109,10 +109,10 @@ function App() {
             <Route path="/reset-password/verify" element={<VerifyForgotPasswordOtp />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
-            
+
             {/* Onboarding - requires auth but no role check */}
             <Route path="/onboard" element={<ProtectedRoute><Onboard /></ProtectedRoute>} />
-            
+
             {/* Protected app routes */}
             <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route index element={<Navigate to="/app/dashboard" replace />} />
@@ -154,7 +154,7 @@ function App() {
                 <Route path="preferences" element={<PreferencesSettingsTab />} />
               </Route>
             </Route>
-            
+
             {/* Catch all - redirect to home */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

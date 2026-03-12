@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, ReactNode } from 'react';
-import { webSocketService } from '../backend/services/WebSocketService';
-import { SKAFTIN_CONFIG } from '../config/skaftin.config';
+import { webSocketService } from '../../backend/services/WebSocketService';
+import { SKAFTIN_CONFIG } from '../../config/skaftin.config';
 
 interface WebSocketContextValue {
   projectId: string | null;

@@ -1,8 +1,8 @@
 // src/components/AuthProvider.tsx
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import useAuthStore from '../stores/data/AuthStore';
-import type { SessionUser } from '../types/Types';
+import useAuthStore from '../../stores/data/AuthStore';
+import type { SessionUser } from '../../types/Types';
 
 interface AuthContextType {
   user: SessionUser | null;
@@ -41,7 +41,7 @@ export function AuthProvider({
   loadingComponent,
 }: AuthProviderProps) {
   const [isInitialized, setIsInitialized] = useState(false);
-  
+
   const {
     sessionUser,
     accessToken,
@@ -78,7 +78,7 @@ export function AuthProvider({
     if (loadingComponent) {
       return <>{loadingComponent}</>;
     }
-    
+
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900">
         <div className="flex flex-col items-center gap-3">
@@ -118,11 +118,11 @@ export function AuthProvider({
  */
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
-  
+
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-  
+
   return context;
 }
 
