@@ -195,27 +195,7 @@ export function CompanyDetailPage() {
         onBackClick={() => navigate(-1)}
       />
 
-
-      <div className="border-b border-slate-200 dark:border-slate-700">
-        <nav className="flex gap-1 flex-wrap" aria-label="Tabs">
-          {tabButtons.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-colors ${
-                activeTab === tab.id
-                  ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 bg-white dark:bg-slate-800'
-                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-4">
+<div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <label
             htmlFor="project-scope"
@@ -250,6 +230,28 @@ export function CompanyDetailPage() {
           </Link>
         </div>
       </div>
+
+
+      <div className="border-b border-slate-200 dark:border-slate-700">
+        <nav className="flex gap-1 flex-wrap" aria-label="Tabs">
+          {tabButtons.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-colors ${
+                activeTab === tab.id
+                  ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 bg-white dark:bg-slate-800'
+                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      
 
       {activeTab === 'summary' && <CompanySummaryTab {...tabProps} />}
       {activeTab === 'contacts' && <CompanyContactsTab company={company} />}

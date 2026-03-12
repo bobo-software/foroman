@@ -22,7 +22,6 @@ interface QuotationFormProps {
 
 interface LineRow {
   id: string;
-  itemId?: number;
   sku?: string;
   description: string;
   quantity: number;
@@ -46,6 +45,8 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
   const [lineRows, setLineRows] = useState<LineRow[]>([]);
   const [globalDiscountPercent, setGlobalDiscountPercent] = useState(0);
   const [initialCompanyApplied, setInitialCompanyApplied] = useState(false);
+  const [initialProjectApplied, setInitialProjectApplied] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<CreateQuotationDto>({
     company_id: undefined,
@@ -107,8 +108,10 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
           customer_email: company.email ?? '',
           customer_address: company.address ?? '',
           customer_vat_number: company.vat_number ?? '',
+          delivery_address: company.address ?? '',
         }));
         setSelectedProject(null);
+        setInitialProjectApplied(false);
         loadProjectsForCompany(company.id!);
         setInitialCompanyApplied(true);
       }
@@ -116,14 +119,15 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
   }, [initialCompanyId, companies, initialCompanyApplied, quotationId, loadProjectsForCompany]);
 
   useEffect(() => {
-    if (!quotationId && initialProjectId && projects.length > 0 && formData.project_id == null) {
+    if (!quotationId && initialProjectId && projects.length > 0 && !initialProjectApplied) {
       const project = projects.find((p) => p.id === initialProjectId);
       if (project) {
         setSelectedProject(project);
         setFormData((prev) => ({ ...prev, project_id: project.id }));
+        setInitialProjectApplied(true);
       }
     }
-  }, [quotationId, initialProjectId, projects, formData.project_id]);
+  }, [quotationId, initialProjectId, projects, initialProjectApplied]);
 
   useEffect(() => {
     if (!quotationId) {
@@ -147,6 +151,10 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
     const matchedCompany = companies.find((c) => c.id === formData.company_id) ?? null;
     if (!matchedCompany) return;
     setSelectedCompany(matchedCompany);
+    setFormData((prev) => ({
+      ...prev,
+      delivery_address: prev.delivery_address || matchedCompany.address || '',
+    }));
     loadProjectsForCompany(matchedCompany.id!).then((projectList) => {
       if (formData.project_id == null) return;
       const matchedProject = projectList.find((p) => p.id === formData.project_id) ?? null;
@@ -163,6 +171,9 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
         QuotationLineService.findByQuotationId(quotationId),
       ]);
       if (quotation) {
+        const matchedCompany = quotation.company_id != null
+          ? companies.find((c) => c.id === quotation.company_id) ?? null
+          : null;
         setFormData({
           company_id: quotation.company_id,
           project_id: quotation.project_id,
@@ -171,7 +182,7 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
           customer_email: quotation.customer_email || '',
           customer_address: quotation.customer_address || '',
           customer_vat_number: quotation.customer_vat_number || '',
-          delivery_address: quotation.delivery_address || '',
+          delivery_address: quotation.delivery_address || matchedCompany?.address || '',
           delivery_conditions: quotation.delivery_conditions || '',
           order_number: quotation.order_number || '',
           terms: quotation.terms || 'C.O.D',
@@ -185,9 +196,6 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
           currency: quotation.currency || 'ZAR',
           notes: quotation.notes || '',
         });
-        const matchedCompany = quotation.company_id != null
-          ? companies.find((c) => c.id === quotation.company_id) ?? null
-          : null;
         setSelectedCompany(matchedCompany);
         if (matchedCompany?.id) {
           const projectList = await loadProjectsForCompany(matchedCompany.id);
@@ -212,7 +220,6 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
             beforeDiscount > 0 ? Math.round((1 - tot / beforeDiscount) * 100 * 100) / 100 : 0;
           return {
             id: `line-${item.id ?? Math.random()}`,
-            itemId: item.item_id,
             sku: item.sku || '',
             description: item.description,
             quantity: qty,
@@ -268,6 +275,7 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
       customer_email: company.email || '',
       customer_address: company.address || '',
       customer_vat_number: company.vat_number || '',
+      delivery_address: prev.delivery_address || company.address || '',
     }));
     setSelectedProject(null);
     if (company.id != null) {
@@ -287,6 +295,7 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
       customer_email: '',
       customer_address: '',
       customer_vat_number: '',
+      delivery_address: '',
     }));
   }, []);
 
@@ -304,16 +313,9 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
   }, []);
 
   const addLine = useCallback(() => {
-    setLineRows((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID?.() ?? `line-${Date.now()}`,
-        description: '',
-        quantity: 1,
-        unit_price: 0,
-        discountPercent: 0,
-      },
-    ]);
+    const id = crypto.randomUUID?.() ?? `line-${Date.now()}`;
+    setLineRows((prev) => [...prev, { id, description: '', quantity: 1, unit_price: 0, discountPercent: 0 }]);
+    setEditingId(id);
   }, []);
 
   const removeLine = useCallback((id: string) => {
@@ -329,7 +331,6 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
   const onItemSelect = useCallback(
     (id: string) => (item: Item) => {
       updateLine(id, {
-        itemId: item.id,
         sku: item.sku || '',
         description: item.name,
         unit_price: item.unit_price ?? 0,
@@ -349,7 +350,7 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
       setError('Project is required for new quotations');
       return;
     }
-    const items: (Omit<QuotationLine, 'id' | 'quotation_id'> & { item_id?: number })[] = lineRows
+    const items: Omit<QuotationLine, 'id' | 'quotation_id'>[] = lineRows
       .filter((r) => r.description && r.quantity > 0)
       .map((r) => ({
         sku: r.sku || undefined,
@@ -357,7 +358,6 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
         quantity: r.quantity,
         unit_price: r.unit_price,
         total: lineTotal(r),
-        item_id: r.itemId,
       }));
     const businessId = useBusinessStore.getState().currentBusiness?.id;
     const payload: CreateQuotationDto = {
@@ -399,7 +399,7 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
   }
 
   return (
-    <div className="max-w-[900px] mx-auto">
+    <div className="max-w-[1200px] mx-auto">
       <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
         {quotationId ? 'Edit Quotation' : 'Create Quotation'}
       </h2>
@@ -559,7 +559,9 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
                   {formData.customer_address && <div>{formData.customer_address}</div>}
                 </div>
               )}
-              <div className={`${groupClass} mt-2`}>
+              <div className="flex flex-row gap-2">
+
+              <div className={`${groupClass} mt-2 flex-1`}>
                 <AppLabledAutocomplete
                   label="Project *"
                   options={projects}
@@ -574,7 +576,7 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
                   placeholder={selectedCompany ? 'Search project...' : 'Select company first'}
                 />
               </div>
-              <div className={`${groupClass} mt-2`}>
+              <div className={`${groupClass} mt-2 flex-1`}>
                 <label htmlFor="customer_vat_number" className={labelClass}>
                   Company VAT #
                 </label>
@@ -586,6 +588,7 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
                   className={inputClass}
                   placeholder="VAT number"
                 />
+              </div>
               </div>
             </div>
             <div className={groupClass}>
@@ -605,111 +608,156 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
         </div>
 
         <div className="pb-3 mb-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
-              Line items
-            </h3>
-            <button
-              type="button"
-              onClick={addLine}
-              className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
-            >
-              + Add line
-            </button>
-          </div>
-          {lineRows.length === 0 ? (
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+            Line items
+          </h3>
+          {lineRows.length === 0 && editingId === null && (
             <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
-              No items. Click &quot;Add line&quot; and select from stock.
+              No items yet. Click &quot;+ Add line&quot; to add one.
             </p>
-          ) : (
-            <div className="space-y-2">
-              {lineRows.map((row) => (
-                <div
-                  key={row.id}
-                  className="grid grid-cols-1 gap-2 p-2 rounded-md bg-gray-50 dark:bg-gray-700/50 md:grid-cols-12 md:items-end"
-                >
-                  <div className="md:col-span-4">
-                    <AppLabledAutocomplete
-                      label=""
-                      options={stockItems}
-                      value={row.itemId != null ? String(row.itemId) : ''}
-                      displayValue={row.description}
-                      accessor="name"
-                      valueAccessor="id"
-                      onSelect={onItemSelect(row.id)}
-                      onClear={() =>
-                        updateLine(row.id, { itemId: undefined, description: '', unit_price: 0 })
-                      }
-                      placeholder="Item"
-                      className="mb-0"
-                    />
+          )}
+          {lineRows.length > 0 && (
+            <div className="mb-1">
+              {lineRows.map((row) =>
+                row.id === editingId ? (
+                  /* ── edit mode ── */
+                  <div
+                    key={row.id}
+                    className="grid grid-cols-1 gap-2 p-2 mb-1 rounded-md bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 md:grid-cols-12 md:items-end"
+                  >
+                    <div className="md:col-span-5">
+                      <div className={groupClass}>
+                        <label className={labelClass}>Search catalogue (optional)</label>
+                        <AppLabledAutocomplete
+                          label=""
+                          options={stockItems}
+                          value=""
+                          displayValue=""
+                          accessor="name"
+                          valueAccessor="id"
+                          onSelect={onItemSelect(row.id)}
+                          onClear={() => {}}
+                          placeholder="Search item to pre-fill…"
+                          className="mb-0"
+                        />
+                      </div>
+                      <div className={`${groupClass} mt-2`}>
+                        <label className={labelClass}>Description *</label>
+                        <input
+                          type="text"
+                          value={row.description}
+                          onChange={(e) => updateLine(row.id, { description: e.target.value })}
+                          className={inputClass}
+                          placeholder="Item description"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    <div className={`${groupClass} md:col-span-1`}>
+                      <label className={labelClass}>Qty</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={row.quantity}
+                        onChange={(e) => updateLine(row.id, { quantity: parseInt(e.target.value, 10) || 1 })}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div className={`${groupClass} md:col-span-2`}>
+                      <label className={labelClass}>Unit price</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        value={row.unit_price}
+                        onChange={(e) => updateLine(row.id, { unit_price: parseFloat(e.target.value) || 0 })}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div className={`${groupClass} md:col-span-1`}>
+                      <label className={labelClass}>Disc %</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        max={100}
+                        value={row.discountPercent}
+                        onChange={(e) => updateLine(row.id, { discountPercent: parseFloat(e.target.value) || 0 })}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div className={`${groupClass} md:col-span-2`}>
+                      <label className={labelClass}>Total</label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={formatCurrency(lineTotal(row), formData.currency)}
+                        className={`${inputClass} ${readonlyClass}`}
+                      />
+                    </div>
+                    <div className="flex items-end gap-1 md:col-span-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="flex-1 px-2 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-md"
+                        aria-label="Done editing"
+                      >
+                        Done
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { removeLine(row.id); setEditingId(null); }}
+                        className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                        aria-label="Remove line"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
-                  <div className={`${groupClass} md:col-span-1`}>
-                    <label className={labelClass}>Qty</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={row.quantity}
-                      onChange={(e) =>
-                        updateLine(row.id, { quantity: parseInt(e.target.value, 10) || 1 })
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className={`${groupClass} md:col-span-2`}>
-                    <label className={labelClass}>Unit price</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      value={row.unit_price}
-                      onChange={(e) =>
-                        updateLine(row.id, {
-                          unit_price: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className={`${groupClass} md:col-span-2`}>
-                    <label className={labelClass}>Discount %</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      max={100}
-                      value={row.discountPercent}
-                      onChange={(e) =>
-                        updateLine(row.id, {
-                          discountPercent: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className={`${groupClass} md:col-span-2`}>
-                    <label className={labelClass}>Line total</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={formatCurrency(lineTotal(row), formData.currency)}
-                      className={`${inputClass} ${readonlyClass}`}
-                    />
-                  </div>
-                  <div className="flex items-end md:col-span-1">
+                ) : (
+                  /* ── view mode ── */
+                  <div
+                    key={row.id}
+                    className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/40 group"
+                  >
+                    <span className="flex-1 text-sm text-gray-900 dark:text-gray-100 truncate">
+                      {row.description || <span className="italic text-gray-400">No description</span>}
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                      {row.quantity} × {formatCurrency(row.unit_price, formData.currency)}
+                      {row.discountPercent > 0 && ` − ${row.discountPercent}%`}
+                    </span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">
+                      {formatCurrency(lineTotal(row), formData.currency)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(row.id)}
+                      className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label="Edit line"
+                    >
+                      ✎
+                    </button>
                     <button
                       type="button"
                       onClick={() => removeLine(row.id)}
-                      className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                      className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                       aria-label="Remove line"
                     >
                       ×
                     </button>
                   </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
           )}
+          <button
+            type="button"
+            onClick={addLine}
+            className="mt-1 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+          >
+            + Add line
+          </button>
         </div>
 
         <div className="pb-3 mb-4">
