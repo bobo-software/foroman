@@ -42,6 +42,7 @@ export class QuotationLineService {
             description: item.description,
             quantity: item.quantity,
             unit_price: Number(item.unit_price),
+            discount_percent: Number(item.discount_percent ?? 0),
             total: Number(item.total),
           },
         }

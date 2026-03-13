@@ -211,23 +211,16 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
         } else {
           setSelectedProject(null);
         }
-        const rows: LineRow[] = (items || []).map((item) => {
-          const qty = item.quantity || 1;
-          const up = Number(item.unit_price) || 0;
-          const tot = Number(item.total) || 0;
-          const beforeDiscount = qty * up;
-          const discountPercent =
-            beforeDiscount > 0 ? Math.round((1 - tot / beforeDiscount) * 100 * 100) / 100 : 0;
-          return {
-            id: `line-${item.id ?? Math.random()}`,
-            sku: item.sku || '',
-            description: item.description,
-            quantity: qty,
-            unit_price: up,
-            discountPercent,
-          };
-        });
+        const rows: LineRow[] = (items || []).map((item) => ({
+          id: `line-${item.id ?? Math.random()}`,
+          sku: item.sku || '',
+          description: item.description,
+          quantity: item.quantity || 1,
+          unit_price: Number(item.unit_price) || 0,
+          discountPercent: Number(item.discount_percent ?? 0),
+        }));
         setLineRows(rows);
+        setGlobalDiscountPercent(Number(quotation.discount_percent ?? 0));
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load quotation');
@@ -357,11 +350,13 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
         description: r.description,
         quantity: r.quantity,
         unit_price: r.unit_price,
+        discount_percent: r.discountPercent || 0,
         total: lineTotal(r),
       }));
     const businessId = useBusinessStore.getState().currentBusiness?.id;
     const payload: CreateQuotationDto = {
       ...formData,
+      discount_percent: globalDiscountPercent || 0,
       ...(businessId != null && { business_id: businessId }),
       items: items.length ? items : undefined,
     };

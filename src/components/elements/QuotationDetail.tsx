@@ -197,8 +197,12 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
   }
 
   const vatRate = Number(quotation.tax_rate) || 0;
-  const subtotalFromLines = lineItems.reduce((sum, item) => sum + Number(item.total || 0), 0);
-  const subtotal = lineItems.length > 0 ? subtotalFromLines : Number(quotation.subtotal) || 0;
+  const globalDiscountPercent = Number(quotation.discount_percent) || 0;
+  const linesSubtotal = lineItems.length > 0
+    ? lineItems.reduce((sum, item) => sum + Number(item.total || 0), 0)
+    : Number(quotation.subtotal) || 0;
+  const discountAmount = (linesSubtotal * globalDiscountPercent) / 100;
+  const subtotal = linesSubtotal - discountAmount;
   const vatAmount = (subtotal * vatRate) / 100;
   const total = subtotal + vatAmount;
 
@@ -389,6 +393,18 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
 
             {/* Totals */}
             <div>
+              {globalDiscountPercent > 0 && (
+                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600 text-sm text-gray-800 dark:text-gray-200">
+                  <span className="text-gray-500 dark:text-gray-400">Lines subtotal</span>
+                  <span>{formatCurrency(linesSubtotal, quotation.currency)}</span>
+                </div>
+              )}
+              {globalDiscountPercent > 0 && (
+                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600 text-sm text-red-600 dark:text-red-400">
+                  <span>Discount ({globalDiscountPercent}%)</span>
+                  <span>−{formatCurrency(discountAmount, quotation.currency)}</span>
+                </div>
+              )}
               <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600 text-sm text-gray-800 dark:text-gray-200">
                 <span className="text-gray-500 dark:text-gray-400">Subtotal</span>
                 <span>{formatCurrency(subtotal, quotation.currency)}</span>

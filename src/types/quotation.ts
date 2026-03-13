@@ -20,6 +20,7 @@ export interface Quotation {
   valid_until?: string;
   status: QuotationStatus;
   subtotal: number;
+  discount_percent?: number;
   tax_rate?: number;
   tax_amount?: number;
   total: number;
@@ -40,6 +41,7 @@ export interface QuotationLine {
   description: string;
   quantity: number;
   unit_price: number;
+  discount_percent?: number;
   total: number;
 }
 
@@ -60,6 +62,7 @@ export interface CreateQuotationDto {
   valid_until?: string;
   status: QuotationStatus;
   subtotal: number;
+  discount_percent?: number;
   tax_rate?: number;
   tax_amount?: number;
   total: number;
