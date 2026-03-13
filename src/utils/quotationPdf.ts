@@ -88,6 +88,7 @@ export async function generateQuotationPdf(
     quantity: Number(item.quantity),
     unitPrice: Number(item.unit_price),
     total: Number(item.total),
+    unitType: item.unit_type ?? 'qty',
   }));
   y = renderLineItemsTable(doc, mappedItems, y, curr, config);
 

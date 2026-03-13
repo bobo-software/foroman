@@ -10,9 +10,12 @@ const TABLE_NAME = 'invoice_items';
 export interface CreateInvoiceItemRow {
   invoice_id: number;
   item_id?: number;
+  sku?: string;
   description: string;
   quantity: number;
   unit_price: number;
+  unit_type?: string;
+  discount_percent?: number;
   total: number;
 }
 
@@ -41,9 +44,12 @@ export class InvoiceItemService {
       const row: CreateInvoiceItemRow = {
         invoice_id: invoiceId,
         ...(item.item_id != null && { item_id: item.item_id }),
+        ...(item.sku != null && { sku: item.sku }),
         description: item.description,
         quantity: item.quantity,
         unit_price: Number(item.unit_price),
+        unit_type: item.unit_type ?? 'qty',
+        discount_percent: Number(item.discount_percent) || 0,
         total: Number(item.total),
       };
       await skaftinClient.post(

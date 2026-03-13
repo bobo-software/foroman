@@ -33,6 +33,8 @@ export interface Quotation {
 
 export type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired' | 'converted';
 
+export type QuotationLineUnitType = 'qty' | 'hrs';
+
 export interface QuotationLine {
   id?: number;
   quotation_id?: number;
@@ -43,6 +45,7 @@ export interface QuotationLine {
   unit_price: number;
   discount_percent?: number;
   total: number;
+  unit_type?: QuotationLineUnitType;
 }
 
 export interface CreateQuotationDto {

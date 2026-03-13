@@ -248,7 +248,7 @@ export const modernTemplate: PdfTemplateFunctions = {
       const sku = item.sku || '\u2014';
       doc.text(sku.slice(0, 12), colStart(0) + 2, rowY + 5);
       doc.text(String(item.description).slice(0, 38), colStart(1) + 2, rowY + 5);
-      doc.text(String(item.quantity), colStart(2) + 2, rowY + 5);
+      doc.text(item.unitType === 'hrs' ? `${item.quantity} hrs` : String(item.quantity), colStart(2) + 2, rowY + 5);
       doc.text(formatCurrency(item.unitPrice, currency), colStart(3) + 2, rowY + 5);
       doc.text(formatCurrency(item.total, currency), colStart(4) + 2, rowY + 5);
       y += 7;

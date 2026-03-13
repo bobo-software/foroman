@@ -130,6 +130,7 @@ export const lineItemSchema = z.object({
   unit_price: positiveNumber('Unit price'),
   discount_percent: z.number().min(0).max(100).optional(),
   total: positiveNumber('Line total'),
+  unit_type: z.enum(['qty', 'hrs']).optional(),
 });
 
 export type LineItemInput = z.infer<typeof lineItemSchema>;

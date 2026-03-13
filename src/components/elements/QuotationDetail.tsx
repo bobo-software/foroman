@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LuFileDown, LuFileText } from 'react-icons/lu';
+import { AppModal } from '../modals/AppModal';
 import type { Quotation, QuotationLine } from '../../types/quotation';
 import type { CreateInvoiceDto } from '../../types/invoice';
 import type { Project } from '../../types/project';
@@ -14,6 +15,7 @@ import InvoiceItemService from '../../services/invoiceItemService';
 import ProjectService from '../../services/projectService';
 import BankingDetailsService from '../../services/bankingDetailsService';
 import ContactService from '../../services/contactService';
+import StorageService from '../../services/storageService';
 import { useBusinessStore } from '../../stores/data/BusinessStore';
 import { formatCurrency } from '../../utils/currency';
 import { generateQuotationPdf } from '../../utils/quotationPdf';
@@ -30,10 +32,12 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
   const [lineItems, setLineItems] = useState<QuotationLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [converting, setConverting] = useState(false);
+  const [convertModalOpen, setConvertModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [bankingDetails, setBankingDetails] = useState<BankingDetails[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     loadQuotation();
@@ -72,6 +76,13 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
     ContactService.findByCompanyId(business.id).then(setContacts);
   }, [business?.id, business?.user_id]);
 
+  useEffect(() => {
+    if (!business?.logo_url) { setLogoUrl(null); return; }
+    StorageService.getFileDownloadUrl(business.logo_url)
+      .then((url) => setLogoUrl(url ?? null))
+      .catch(() => setLogoUrl(null));
+  }, [business?.logo_url]);
+
   const handleDownloadPdf = useCallback(async () => {
     if (!quotation) return;
     await generateQuotationPdf(quotation, lineItems, business);
@@ -90,13 +101,6 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
 
   const handleConvertToInvoice = useCallback(async () => {
     if (!quotation) return;
-    const canConvert = quotation.status === 'accepted' || quotation.status === 'sent';
-    if (!canConvert && quotation.status !== 'converted') {
-      const ok = confirm(
-        'This quotation is not accepted/sent. Convert anyway? (Accepted or sent is recommended.)'
-      );
-      if (!ok) return;
-    }
     if (quotation.converted_invoice_id != null) {
       navigate(`/app/invoices/${quotation.converted_invoice_id}`);
       return;
@@ -124,6 +128,7 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
         subtotal: Number(quotation.subtotal) || 0,
         tax_rate: quotation.tax_rate,
         tax_amount: quotation.tax_amount,
+        discount_percent: Number(quotation.discount_percent) || 0,
         total: Number(quotation.total) || 0,
         currency: quotation.currency || 'ZAR',
         notes: quotation.notes,
@@ -138,7 +143,10 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
             description: line.description,
             quantity: line.quantity,
             unit_price: Number(line.unit_price) || 0,
+            unit_type: line.unit_type ?? 'qty',
+            discount_percent: Number(line.discount_percent) || 0,
             total: Number(line.total) || 0,
+            ...(line.sku != null && { sku: line.sku }),
             ...(line.item_id != null && { item_id: line.item_id }),
           }))
         );
@@ -151,6 +159,7 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
       } catch {
         // Backend may not have converted_invoice_id column yet
       }
+      setConvertModalOpen(false);
       navigate(`/app/invoices/${newId}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to convert to invoice');
@@ -208,212 +217,205 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
 
   const hasPage2 = !!quotation.notes;
 
+  const thClass = 'px-2 py-1.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide';
+
   return (
-    <div className="w-full max-w-[794px] mx-auto px-4 py-4 flex flex-col gap-4">
-      {/* Action bar — outside the pages */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
+    <div className="quotation-print-root w-full max-w-[794px] mx-auto px-4 py-4 flex flex-col gap-4 print:max-w-none print:px-0 print:py-0 print:gap-0">
+      {/* Action bar */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center print:hidden">
         <div>
           <h1 className="m-0 mb-1 text-xl font-semibold text-gray-900 dark:text-gray-100">
             Quotation {quotation.quotation_number}
           </h1>
-          <span
-            className={`inline-block px-3 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusBadgeClass(quotation.status)}`}
-          >
+          <span className={`inline-block px-3 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusBadgeClass(quotation.status)}`}>
             {quotation.status}
           </span>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={handleDownloadPdf}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 transition-colors"
-          >
-            <LuFileDown size={15} aria-hidden />
-            Export PDF
+          <button type="button" onClick={handleDownloadPdf}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 transition-colors">
+            <LuFileDown size={15} aria-hidden />Export PDF
           </button>
           <button
             type="button"
-            onClick={handleConvertToInvoice}
+            onClick={() => quotation.converted_invoice_id != null ? handleConvertToInvoice() : setConvertModalOpen(true)}
             disabled={converting}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
             <LuFileText size={15} aria-hidden />
-            {quotation.converted_invoice_id != null ? 'View invoice' : converting ? 'Converting…' : 'Convert to invoice'}
+            {quotation.converted_invoice_id != null ? 'View invoice' : 'Convert to invoice'}
           </button>
           {onEdit && (
-            <button
-              onClick={onEdit}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 transition-colors"
-            >
-              Edit
-            </button>
+            <button onClick={onEdit} className="px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 transition-colors">Edit</button>
           )}
           {onDelete && (
-            <button
-              onClick={handleDelete}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
-            >
-              Delete
-            </button>
+            <button onClick={handleDelete} className="px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors">Delete</button>
           )}
         </div>
       </div>
 
-      {/* Page 1 */}
-      <div className="bg-white dark:bg-gray-800 w-full min-h-[1123px] p-8 rounded-lg shadow border border-gray-200 dark:border-gray-700 flex flex-col">
-        {/* From / To */}
-        <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="grid grid-cols-2 divide-x divide-gray-200 dark:divide-gray-700">
-            <div className="pr-6">
-              <h2 className="mb-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">From</h2>
-              {business ? (
-                <div className="flex flex-col gap-0.5 text-sm">
-                  <span className="font-semibold text-gray-800 dark:text-gray-200">{business.name}</span>
-                  {contacts[0]?.email && <span className="text-gray-500 dark:text-gray-400">{contacts[0].email}</span>}
-                  {business.phone && <span className="text-gray-500 dark:text-gray-400">{business.phone}</span>}
-                  {business.address && <span className="text-gray-500 dark:text-gray-400">{business.address}</span>}
-                </div>
-              ) : (
-                <span className="text-sm text-gray-400 dark:text-gray-500">—</span>
-              )}
-            </div>
-            <div className="pl-6">
-              <h2 className="mb-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">To</h2>
-              <div className="flex flex-col gap-0.5 text-sm">
-                <span className="font-semibold text-gray-800 dark:text-gray-200">{quotation.customer_name}</span>
-                {quotation.customer_email && <span className="text-gray-500 dark:text-gray-400">{quotation.customer_email}</span>}
-                {quotation.customer_address && <span className="text-gray-500 dark:text-gray-400">{quotation.customer_address}</span>}
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* ── Page 1 ── */}
+      <div className="quotation-print-page bg-white dark:bg-gray-800 w-full min-h-[1123px] p-8 rounded-lg shadow border border-gray-200 dark:border-gray-700 flex flex-col gap-0 print:shadow-none print:border-none print:rounded-none print:min-h-0 print:p-0">
 
-        {/* Quotation details */}
-        <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="mb-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-            Quotation Details
-          </h2>
-          <div className="flex flex-wrap gap-x-6 gap-y-0.5 text-sm text-gray-700 dark:text-gray-300">
-            <span><span className="text-gray-400 dark:text-gray-500">Issued </span>{formatDate(quotation.issue_date)}</span>
-            {quotation.valid_until && (
-              <span><span className="text-gray-400 dark:text-gray-500">Valid until </span>{formatDate(quotation.valid_until)}</span>
+        {/* ── Header ── */}
+        <div className="flex items-start justify-between pb-4 mb-4 border-b-2 border-gray-300 dark:border-gray-600">
+          {/* Left: logo + business name + address */}
+          <div className="flex-1 min-w-0">
+            {logoUrl && (
+              <img src={logoUrl} alt="logo" className="mb-2 max-h-14 max-w-[120px] object-contain" />
+            )}
+            <p className="text-sm font-bold text-gray-800 dark:text-gray-100 leading-tight">{business?.name ?? '—'}</p>
+            {business?.address && (
+              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 whitespace-pre-line leading-snug max-w-[160px]">{business.address}</p>
+            )}
+          </div>
+
+          {/* Middle: Tel / VAT / Reg */}
+          <div className="flex-1 flex flex-col gap-0.5 text-xs text-gray-500 dark:text-gray-400 pt-1 px-4">
+            {business?.phone && <span>Tel: {business.phone}</span>}
+            {business?.vat_number && <span>VAT: {business.vat_number}</span>}
+            {business?.registration_number && <span>Reg: {business.registration_number}</span>}
+            {contacts[0]?.email && <span>{contacts[0].email}</span>}
+          </div>
+
+          {/* Right: document title / number / order / status */}
+          <div className="flex flex-col items-end gap-0.5 shrink-0">
+            <p className="text-2xl font-bold text-gray-800 dark:text-gray-100 tracking-wide uppercase leading-none">Quotation</p>
+            <p className="text-base font-semibold text-gray-700 dark:text-gray-200">{quotation.quotation_number}</p>
+            {quotation.order_number && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">Order: {quotation.order_number}</p>
             )}
             {project && (
-              <span><span className="text-gray-400 dark:text-gray-500">Project </span>{project.name}</span>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Project: {project.name}</p>
+            )}
+            <span className={`mt-1 inline-block px-2 py-0.5 rounded text-xs font-semibold uppercase ${getStatusBadgeClass(quotation.status)}`}>
+              {quotation.status}
+            </span>
+          </div>
+        </div>
+
+        {/* ── Bill To / Deliver To ── */}
+        <div className="grid grid-cols-2 gap-6 pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
+          <div>
+            <p className="mb-1 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Bill To</p>
+            <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">{quotation.customer_name}</p>
+            {quotation.customer_vat_number && <p className="text-xs text-gray-500 dark:text-gray-400">VAT: {quotation.customer_vat_number}</p>}
+            {quotation.customer_address && <p className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-line">{quotation.customer_address}</p>}
+            {quotation.customer_email && <p className="text-xs text-gray-500 dark:text-gray-400">{quotation.customer_email}</p>}
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Deliver To</p>
+            {quotation.delivery_address ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-line">{quotation.delivery_address}</p>
+            ) : (
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">Same as billing address</p>
+            )}
+            {quotation.delivery_conditions && (
+              <p className="mt-1 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">
+                Delivery: {quotation.delivery_conditions === 'collect' ? 'COLLECT' : 'DELIVER'}
+              </p>
             )}
           </div>
         </div>
 
-        {/* Line items */}
-        <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-            Line Items
-          </h2>
+        {/* ── Dates row ── */}
+        <div className="flex flex-wrap gap-x-8 gap-y-1 pb-4 mb-4 border-b border-gray-200 dark:border-gray-700 text-xs text-gray-700 dark:text-gray-300">
+          <span><span className="text-gray-400 dark:text-gray-500">Issue Date: </span>{formatDate(quotation.issue_date)}</span>
+          {quotation.valid_until && (
+            <span><span className="text-gray-400 dark:text-gray-500">Valid Until: </span>{formatDate(quotation.valid_until)}</span>
+          )}
+          {quotation.terms && (
+            <span><span className="text-gray-400 dark:text-gray-500">Terms: </span>{quotation.terms}</span>
+          )}
+        </div>
+
+        {/* ── Line items table ── */}
+        <div className="mb-4">
           {lineItems.length > 0 ? (
-            <table className="w-full border-collapse text-sm">
+            <table className="w-full border-collapse text-xs">
               <thead>
-                <tr>
-                  <th className="px-2 py-1.5 text-left border-b border-gray-200 dark:border-gray-600 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Description</th>
-                  <th className="px-2 py-1.5 text-right border-b border-gray-200 dark:border-gray-600 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Qty</th>
-                  <th className="px-2 py-1.5 text-right border-b border-gray-200 dark:border-gray-600 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Unit Price</th>
-                  <th className="px-2 py-1.5 text-right border-b border-gray-200 dark:border-gray-600 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Total</th>
+                <tr className="bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                  <th className={`${thClass} w-8 border-r border-gray-200 dark:border-gray-600`}>No.</th>
+                  <th className={`${thClass} w-20 border-r border-gray-200 dark:border-gray-600`}>SKU</th>
+                  <th className={`${thClass} border-r border-gray-200 dark:border-gray-600`}>Description</th>
+                  <th className={`${thClass} text-right border-r border-gray-200 dark:border-gray-600`}>Qty</th>
+                  <th className={`${thClass} text-right border-r border-gray-200 dark:border-gray-600`}>Unit Price</th>
+                  <th className={`${thClass} text-right`}>Line Total</th>
                 </tr>
               </thead>
               <tbody>
-                {lineItems.map((item) => {
+                {lineItems.map((item, idx) => {
                   const qty = Number(item.quantity) || 0;
                   const unitPrice = Number(item.unit_price) || 0;
-                  const lineTotal = Number(item.total) ?? qty * unitPrice;
+                  const itemTotal = Number(item.total) ?? qty * unitPrice;
                   return (
-                    <tr key={item.id ?? `${item.description}-${qty}`} className="border-b border-gray-100 dark:border-gray-700">
-                      <td className="px-2 py-2 text-gray-800 dark:text-gray-200">{item.description}</td>
-                      <td className="px-2 py-2 text-right text-gray-800 dark:text-gray-200">{qty}</td>
-                      <td className="px-2 py-2 text-right text-gray-800 dark:text-gray-200">{formatCurrency(unitPrice, quotation.currency)}</td>
-                      <td className="px-2 py-2 text-right text-gray-800 dark:text-gray-200">{formatCurrency(lineTotal, quotation.currency)}</td>
+                    <tr
+                      key={item.id ?? `${item.description}-${idx}`}
+                      className={`border border-gray-200 dark:border-gray-700 ${idx % 2 === 1 ? 'bg-gray-50 dark:bg-gray-700/30' : ''}`}
+                    >
+                      <td className="px-2 py-1 text-gray-400 dark:text-gray-500 border-r border-gray-200 dark:border-gray-600">{idx + 1}</td>
+                      <td className="px-2 py-1 text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-600">{item.sku ?? '—'}</td>
+                      <td className="px-2 py-1 text-gray-800 dark:text-gray-200 border-r border-gray-200 dark:border-gray-600">{item.description}</td>
+                      <td className="px-2 py-1 text-right text-green-600 dark:text-green-400 font-medium border-r border-gray-200 dark:border-gray-600">
+                        {qty}{item.unit_type === 'hrs' ? ' hrs' : ''}
+                      </td>
+                      <td className="px-2 py-1 text-right text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-600">{formatCurrency(unitPrice, quotation.currency)}</td>
+                      <td className="px-2 py-1 text-right text-gray-800 dark:text-gray-200 font-medium">{formatCurrency(itemTotal, quotation.currency)}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           ) : (
-            <p className="m-0 p-3 text-gray-500 dark:text-gray-400 text-sm bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-              No line items on this quotation.
-            </p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 py-2">No line items.</p>
           )}
         </div>
 
-        {/* Banking details + Totals side by side — pushed to bottom */}
-        <div className="mt-auto pt-5 border-t border-gray-200 dark:border-gray-700">
+        {/* ── Banking + Totals — pushed to bottom ── */}
+        <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
           <div className="grid grid-cols-2 gap-8 items-start">
-            {/* Banking details */}
+            {/* Banking */}
             {bankingDetails.length > 0 ? (
-              <div>
-                <h2 className="mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                  Banking Details
-                </h2>
+              <div className="text-xs">
+                <p className="mb-1.5 font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">Banking Details</p>
                 {bankingDetails.map((bd) => (
-                  <div key={bd.id} className="text-sm space-y-0.5">
-                    {bd.label && <p className="font-semibold text-gray-800 dark:text-gray-200 mb-1">{bd.label}</p>}
-                    <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-gray-700 dark:text-gray-300">
-                      <span className="text-gray-400 dark:text-gray-500">Bank</span>
-                      <span>{bd.bank_name}</span>
-                      {bd.account_holder && (
-                        <>
-                          <span className="text-gray-400 dark:text-gray-500">Account Holder</span>
-                          <span>{bd.account_holder}</span>
-                        </>
-                      )}
-                      <span className="text-gray-400 dark:text-gray-500">Account No.</span>
-                      <span>{bd.account_number}</span>
-                      {bd.account_type && (
-                        <>
-                          <span className="text-gray-400 dark:text-gray-500">Account Type</span>
-                          <span>{ACCOUNT_TYPES.find((t) => t.value === bd.account_type)?.label ?? bd.account_type}</span>
-                        </>
-                      )}
-                      {bd.branch_code && (
-                        <>
-                          <span className="text-gray-400 dark:text-gray-500">Branch Code</span>
-                          <span>{bd.branch_code}</span>
-                        </>
-                      )}
-                      {bd.swift_code && (
-                        <>
-                          <span className="text-gray-400 dark:text-gray-500">SWIFT</span>
-                          <span>{bd.swift_code}</span>
-                        </>
-                      )}
+                  <div key={bd.id} className="mb-3">
+                    {bd.label && <p className="font-semibold text-gray-700 dark:text-gray-300 mb-0.5">{bd.label}</p>}
+                    <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-gray-600 dark:text-gray-400">
+                      <span className="text-gray-400 dark:text-gray-500">Bank</span><span>{bd.bank_name}</span>
+                      {bd.account_holder && (<><span className="text-gray-400 dark:text-gray-500">Acc. Holder</span><span>{bd.account_holder}</span></>)}
+                      <span className="text-gray-400 dark:text-gray-500">Account No.</span><span>{bd.account_number}</span>
+                      {bd.account_type && (<><span className="text-gray-400 dark:text-gray-500">Acc. Type</span><span>{ACCOUNT_TYPES.find((t) => t.value === bd.account_type)?.label ?? bd.account_type}</span></>)}
+                      {bd.branch_code && (<><span className="text-gray-400 dark:text-gray-500">Branch Code</span><span>{bd.branch_code}</span></>)}
+                      {bd.swift_code && (<><span className="text-gray-400 dark:text-gray-500">SWIFT</span><span>{bd.swift_code}</span></>)}
                     </div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div />
-            )}
+            ) : <div />}
 
             {/* Totals */}
-            <div>
+            <div className="text-xs">
               {globalDiscountPercent > 0 && (
-                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600 text-sm text-gray-800 dark:text-gray-200">
-                  <span className="text-gray-500 dark:text-gray-400">Lines subtotal</span>
+                <div className="flex justify-between py-1 border-b border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                  <span>Lines subtotal</span>
                   <span>{formatCurrency(linesSubtotal, quotation.currency)}</span>
                 </div>
               )}
               {globalDiscountPercent > 0 && (
-                <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600 text-sm text-red-600 dark:text-red-400">
+                <div className="flex justify-between py-1 border-b border-gray-200 dark:border-gray-600 text-green-600 dark:text-green-400">
                   <span>Discount ({globalDiscountPercent}%)</span>
                   <span>−{formatCurrency(discountAmount, quotation.currency)}</span>
                 </div>
               )}
-              <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600 text-sm text-gray-800 dark:text-gray-200">
-                <span className="text-gray-500 dark:text-gray-400">Subtotal</span>
+              <div className="flex justify-between py-1 border-b border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                <span>Subtotal</span>
                 <span>{formatCurrency(subtotal, quotation.currency)}</span>
               </div>
-              <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-600 text-sm text-gray-800 dark:text-gray-200">
-                <span className="text-gray-500 dark:text-gray-400">VAT ({vatRate}%)</span>
+              <div className="flex justify-between py-1 border-b border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                <span>VAT ({vatRate}%)</span>
                 <span>{formatCurrency(vatAmount, quotation.currency)}</span>
               </div>
-              <div className="flex justify-between py-2.5 border-t-2 border-gray-800 dark:border-gray-300 text-base font-semibold text-gray-900 dark:text-gray-100">
+              <div className="flex justify-between py-2 mt-1 border-t-2 border-gray-700 dark:border-gray-300 text-sm font-bold text-gray-900 dark:text-gray-100">
                 <span>Total</span>
                 <span>{formatCurrency(total, quotation.currency)}</span>
               </div>
@@ -421,39 +423,103 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
           </div>
         </div>
 
-        {/* Footer timestamp (no page 2) */}
-        {!hasPage2 && quotation.created_at && (
-          <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 text-right">
-            <p className="m-0 text-xs text-gray-400 dark:text-gray-500">
-              Created: {new Date(quotation.created_at).toLocaleString()}
-              {quotation.updated_at && quotation.updated_at !== quotation.created_at && (
-                <> • Updated: {new Date(quotation.updated_at).toLocaleString()}</>
-              )}
-            </p>
+        {/* ── Signature ── */}
+        <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-8 text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex items-end gap-2">
+              <span className="whitespace-nowrap">Full Name &amp; Surname:</span>
+              <span className="flex-1 min-w-[120px] border-b border-gray-400 dark:border-gray-500 pb-0.5">&nbsp;</span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span>Date:</span>
+              <span className="min-w-[80px] border-b border-gray-400 dark:border-gray-500 pb-0.5">&nbsp;</span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span>Signature:</span>
+              <span className="flex-1 min-w-[100px] border-b border-gray-400 dark:border-gray-500 pb-0.5">&nbsp;</span>
+            </div>
           </div>
-        )}
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="mt-auto pt-6 text-center">
+          <p className="text-xs text-gray-300 dark:text-gray-600">Foroman by Bobo Softwares (2026)</p>
+        </div>
       </div>
 
-      {/* Page 2 — only if notes exist */}
+      {/* ── Convert to Invoice modal ── */}
+      <AppModal
+        isOpen={convertModalOpen}
+        onClose={() => !converting && setConvertModalOpen(false)}
+        title="Convert to Invoice"
+        titleIcon={<LuFileText size={16} />}
+        size="sm"
+        closeOnBackdrop={!converting}
+        showCloseButton={!converting}
+        buttons={[
+          {
+            label: 'Cancel',
+            variant: 'secondary',
+            onClick: () => setConvertModalOpen(false),
+            disabled: converting,
+          },
+          {
+            label: 'Convert',
+            variant: 'primary',
+            onClick: handleConvertToInvoice,
+            loading: converting,
+            loadingLabel: 'Converting…',
+          },
+        ]}
+      >
+        <div className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+          <p>
+            Create an invoice from{' '}
+            <span className="font-semibold text-slate-800 dark:text-slate-200">
+              {quotation.quotation_number}
+            </span>{' '}
+            for{' '}
+            <span className="font-semibold text-slate-800 dark:text-slate-200">
+              {quotation.customer_name}
+            </span>
+            ?
+          </p>
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-700/50 px-4 py-3 text-xs space-y-1">
+            <div className="flex justify-between">
+              <span className="text-slate-400 dark:text-slate-500">Subtotal</span>
+              <span>{formatCurrency(subtotal, quotation.currency)}</span>
+            </div>
+            {vatRate > 0 && (
+              <div className="flex justify-between">
+                <span className="text-slate-400 dark:text-slate-500">VAT ({vatRate}%)</span>
+                <span>{formatCurrency(vatAmount, quotation.currency)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-semibold text-slate-800 dark:text-slate-200 pt-1 border-t border-slate-200 dark:border-slate-600">
+              <span>Total</span>
+              <span>{formatCurrency(total, quotation.currency)}</span>
+            </div>
+          </div>
+          {quotation.status !== 'accepted' && quotation.status !== 'sent' && (
+            <p className="text-amber-600 dark:text-amber-400 text-xs">
+              Note: This quotation has status "{quotation.status}". Accepted or sent status is recommended before converting.
+            </p>
+          )}
+        </div>
+      </AppModal>
+
+      {/* ── Page 2 — notes ── */}
       {hasPage2 && (
-        <div className="bg-white dark:bg-gray-800 w-full min-h-[1123px] p-8 rounded-lg shadow border border-gray-200 dark:border-gray-700 flex flex-col">
-          <div className="mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Notes</h2>
+        <div className="quotation-print-page bg-white dark:bg-gray-800 w-full min-h-[1123px] p-8 rounded-lg shadow border border-gray-200 dark:border-gray-700 flex flex-col print:shadow-none print:border-none print:rounded-none print:min-h-0 print:p-0">
+          <div className="pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
+            <p className="mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Notes</p>
             <p className="m-0 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap text-sm">
               {quotation.notes}
             </p>
           </div>
-
-          {quotation.created_at && (
-            <div className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-700 text-right">
-              <p className="m-0 text-xs text-gray-400 dark:text-gray-500">
-                Created: {new Date(quotation.created_at).toLocaleString()}
-                {quotation.updated_at && quotation.updated_at !== quotation.created_at && (
-                  <> • Updated: {new Date(quotation.updated_at).toLocaleString()}</>
-                )}
-              </p>
-            </div>
-          )}
+          <div className="mt-auto pt-6 text-center">
+            <p className="text-xs text-gray-300 dark:text-gray-600">Foroman by Bobo Softwares (2026)</p>
+          </div>
         </div>
       )}
     </div>

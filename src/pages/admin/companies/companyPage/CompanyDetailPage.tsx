@@ -222,8 +222,7 @@ export function CompanyDetailPage() {
               </option>
             ))}
           </select>
-          <Link
-            to={`/app/companies/${company.id}/projects`}
+          <Link to={`/app/companies/${company.id}/projects`}
             className="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 no-underline hover:bg-slate-50 dark:hover:bg-slate-700"
           >
             Manage projects

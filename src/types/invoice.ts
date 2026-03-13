@@ -22,6 +22,7 @@ export interface Invoice {
   subtotal: number;
   tax_rate?: number;
   tax_amount?: number;
+  discount_percent?: number;
   total: number;
   currency?: string;
   notes?: string;
@@ -39,6 +40,8 @@ export interface InvoiceItem {
   description: string;
   quantity: number;
   unit_price: number;
+  unit_type?: 'qty' | 'hrs' | string;
+  discount_percent?: number;
   total: number;
 }
 
@@ -61,6 +64,7 @@ export interface CreateInvoiceDto {
   subtotal: number;
   tax_rate?: number;
   tax_amount?: number;
+  discount_percent?: number;
   total: number;
   currency?: string;
   notes?: string;

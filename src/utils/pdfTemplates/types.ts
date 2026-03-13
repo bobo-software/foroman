@@ -63,6 +63,7 @@ export interface LineItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  unitType?: 'qty' | 'hrs';
 }
 
 /** Data passed to renderTotalsSection */

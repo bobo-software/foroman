@@ -204,6 +204,26 @@ describe('lineItemSchema', () => {
     const result = lineItemSchema.safeParse({ ...valid, description: '' });
     expect(result.success).toBe(false);
   });
+
+  it('accepts unit_type qty', () => {
+    const result = lineItemSchema.safeParse({ ...valid, unit_type: 'qty' });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts unit_type hrs', () => {
+    const result = lineItemSchema.safeParse({ ...valid, unit_type: 'hrs' });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts missing unit_type (backward compatibility)', () => {
+    const result = lineItemSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects invalid unit_type', () => {
+    const result = lineItemSchema.safeParse({ ...valid, unit_type: 'pieces' });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('loginSchema', () => {

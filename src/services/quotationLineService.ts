@@ -39,11 +39,13 @@ export class QuotationLineService {
           data: {
             quotation_id: quotationId,
             ...(item.item_id != null && { item_id: item.item_id }),
+            ...(item.sku != null && item.sku !== '' && { sku: item.sku }),
             description: item.description,
             quantity: item.quantity,
             unit_price: Number(item.unit_price),
             discount_percent: Number(item.discount_percent ?? 0),
             total: Number(item.total),
+            unit_type: item.unit_type ?? 'qty',
           },
         }
       );

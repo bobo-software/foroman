@@ -1,12 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LuFileDown } from 'react-icons/lu';
 import type { Invoice, InvoiceItem } from '../../types/invoice';
+import type { BankingDetails } from '../../types/bankingDetails';
+import { ACCOUNT_TYPES } from '../../types/bankingDetails';
+import type { Contact } from '../../types/contact';
 import InvoiceService from '../../services/invoiceService';
 import InvoiceItemService from '../../services/invoiceItemService';
+import BankingDetailsService from '../../services/bankingDetailsService';
+import ContactService from '../../services/contactService';
+import StorageService from '../../services/storageService';
 import { formatCurrency } from '../../utils/currency';
 import { generateInvoicePdf } from '../../utils/invoicePdf';
 import { useBusinessStore } from '../../stores/data/BusinessStore';
-import { TEMPLATE_LIST, getTemplateConfig, type DocumentTemplateId, type RGB } from '../../types/documentTemplate';
+import { TEMPLATE_LIST, type DocumentTemplateId } from '../../types/documentTemplate';
 
 interface InvoiceDetailProps {
   invoiceId: number;
@@ -20,6 +26,10 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [bankingDetails, setBankingDetails] = useState<BankingDetails[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
   const business = useBusinessStore((s) => s.currentBusiness);
   const [selectedTemplate, setSelectedTemplate] = useState<DocumentTemplateId>(
     (business?.document_template as DocumentTemplateId) || 'classic'
@@ -39,12 +49,30 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
       ]);
       setInvoice(inv);
       setLineItems(Array.isArray(items) ? items : []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load invoice');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load invoice');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (business?.id == null) return;
+    const fetchBanking = business.user_id != null
+      ? BankingDetailsService.findByUserId(business.user_id)
+      : BankingDetailsService.findByCompanyId(business.id);
+    fetchBanking.then((details) =>
+      setBankingDetails(details.filter((d) => d.is_active !== false))
+    );
+    ContactService.findByCompanyId(business.id).then(setContacts);
+  }, [business?.id, business?.user_id]);
+
+  useEffect(() => {
+    if (!business?.logo_url) { setLogoUrl(null); return; }
+    StorageService.getFileDownloadUrl(business.logo_url)
+      .then((url) => setLogoUrl(url ?? null))
+      .catch(() => setLogoUrl(null));
+  }, [business?.logo_url]);
 
   const handleDownloadPdf = useCallback(async () => {
     if (!invoice) return;
@@ -58,12 +86,11 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this invoice?')) return;
-
     try {
       await InvoiceService.delete(invoiceId);
       onDelete?.();
-    } catch (err: any) {
-      alert('Failed to delete invoice: ' + err.message);
+    } catch (err: unknown) {
+      alert('Failed to delete invoice: ' + (err instanceof Error ? err.message : String(err)));
     }
   };
 
@@ -105,44 +132,38 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
   }
 
   const vatRate = Number(invoice.tax_rate) || 0;
-  const subtotalFromLines = lineItems.reduce((sum, item) => sum + Number(item.total || 0), 0);
-  const subtotal = lineItems.length > 0 ? subtotalFromLines : Number(invoice.subtotal) || 0;
+  const globalDiscountPercent = Number(invoice.discount_percent) || 0;
+  const linesSubtotal = lineItems.length > 0
+    ? lineItems.reduce((sum, item) => sum + Number(item.total || 0), 0)
+    : Number(invoice.subtotal) || 0;
+  const discountAmount = (linesSubtotal * globalDiscountPercent) / 100;
+  const subtotal = linesSubtotal - discountAmount;
   const vatAmount = (subtotal * vatRate) / 100;
   const total = subtotal + vatAmount;
 
-  // ── Derive theme from template config ──
-  const tplConfig = getTemplateConfig(selectedTemplate);
-  const rgb = (c: RGB) => `rgb(${c[0]},${c[1]},${c[2]})`;
-  const rgba = (c: RGB, a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  const hasPage2 = !!invoice.notes;
+
+  const thClass = 'px-2 py-1.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide';
 
   return (
-    <div className="max-w-[900px] mx-auto p-4 md:p-8">
-      {/* Header with actions */}
-      <div className="flex flex-col gap-4 mb-8 pb-6 border-b-2 border-gray-200 dark:border-gray-700 md:flex-row md:justify-between md:items-start">
+    <div className="invoice-print-root w-full max-w-[794px] mx-auto px-4 py-4 flex flex-col gap-4 print:max-w-none print:px-0 print:py-0 print:gap-0">
+      {/* Action bar */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center print:hidden">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="m-0 text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              Invoice {invoice.invoice_number}
-            </h1>
-            {invoice.order_number && (
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                (Order: {invoice.order_number})
-              </span>
-            )}
-          </div>
-          <span
-            className={`inline-block px-4 py-1.5 rounded-full text-sm font-medium capitalize ${getStatusBadgeClass(invoice.status)}`}
-          >
+          <h1 className="m-0 mb-1 text-xl font-semibold text-gray-900 dark:text-gray-100">
+            Invoice {invoice.invoice_number}
+          </h1>
+          <span className={`inline-block px-3 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusBadgeClass(invoice.status)}`}>
             {invoice.status}
           </span>
         </div>
-        <div className="flex flex-wrap gap-3 md:w-auto w-full">
+        <div className="flex flex-wrap gap-2 items-center">
           {/* Template selector + Export PDF */}
-          <div className="flex items-center gap-0 flex-1 md:flex-none">
+          <div className="flex items-center gap-0">
             <select
               value={selectedTemplate}
               onChange={(e) => setSelectedTemplate(e.target.value as DocumentTemplateId)}
-              className="h-[42px] px-3 text-sm font-medium rounded-l-lg border border-r-0 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-teal-500 dark:focus:border-teal-400 transition-colors"
+              className="h-[34px] px-2 text-sm rounded-l-lg border border-r-0 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-teal-500 transition-colors"
             >
               {TEMPLATE_LIST.map((t) => (
                 <option key={t.id} value={t.id}>{t.name}</option>
@@ -152,434 +173,233 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
               type="button"
               onClick={handleDownloadPdf}
               disabled={exporting}
-              className="inline-flex items-center gap-1.5 h-[42px] px-5 rounded-r-lg text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-0"
+              className="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-r-lg text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {exporting ? (
                 <>
                   <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
                   Exporting…
                 </>
               ) : (
-                <>
-                  <LuFileDown size={18} aria-hidden />
-                  Export PDF
-                </>
+                <><LuFileDown size={15} aria-hidden />Export PDF</>
               )}
             </button>
           </div>
           {onEdit && (
-            <button
-              onClick={onEdit}
-              className="px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 transition-colors flex-1 md:flex-none"
-            >
-              Edit
-            </button>
+            <button onClick={onEdit} className="px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 transition-colors">Edit</button>
           )}
           {onDelete && (
-            <button
-              onClick={handleDelete}
-              className="px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors flex-1 md:flex-none"
-            >
-              Delete
-            </button>
+            <button onClick={handleDelete} className="px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors">Delete</button>
           )}
         </div>
       </div>
 
-      {/* ── Invoice card — styled by selected template ── */}
-      <div
-        className="rounded-lg shadow border overflow-hidden transition-all duration-300"
-        style={{ borderColor: rgba(tplConfig.primaryColor, 0.2) }}
-      >
-        {/* Accent bar (Modern) */}
-        <div
-          className="transition-all duration-300"
-          style={{
-            height: tplConfig.accentBar ? `${Math.max(tplConfig.accentBarHeight, 4)}px` : '0px',
-            backgroundColor: rgb(tplConfig.primaryColor),
-          }}
-        />
+      {/* ── Page 1 ── */}
+      <div className="invoice-print-page bg-white dark:bg-gray-800 w-full min-h-[1123px] p-8 rounded-lg shadow border border-gray-200 dark:border-gray-700 flex flex-col gap-0 print:shadow-none print:border-none print:rounded-none print:min-h-0 print:p-0">
 
-        <div className="bg-white dark:bg-gray-800 p-6 md:p-8">
-
-          {/* ── Invoice title row ── */}
-          <div
-            className="flex items-center justify-between mb-6 pb-4 transition-colors duration-300"
-            style={{ borderBottom: `2px solid ${rgba(tplConfig.primaryColor, 0.25)}` }}
-          >
-            <h2
-              className="m-0 text-xl font-bold uppercase tracking-wide transition-colors duration-300"
-              style={{ color: rgb(tplConfig.primaryColor) }}
-            >
-              Invoice
-            </h2>
-            <span
-              className="text-lg font-semibold transition-colors duration-300"
-              style={{ color: rgb(tplConfig.primaryColor) }}
-            >
-              #{invoice.invoice_number}
-            </span>
-          </div>
-
-          {/* ── Bill To / Deliver To ── */}
-          <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <h3
-                  className="mb-3 text-sm font-semibold uppercase tracking-wide transition-colors duration-300"
-                  style={{ color: rgb(tplConfig.secondaryTextColor) }}
-                >
-                  Bill To
-                </h3>
-                <div className="space-y-2">
-                  <p className="m-0 text-base font-medium" style={{ color: rgb(tplConfig.textColor) }}>
-                    {invoice.customer_name}
-                  </p>
-                  {invoice.customer_vat_number && (
-                    <p className="m-0 text-sm" style={{ color: rgb(tplConfig.secondaryTextColor) }}>
-                      VAT: {invoice.customer_vat_number}
-                    </p>
-                  )}
-                  {invoice.customer_address && (
-                    <p className="m-0 text-sm whitespace-pre-line" style={{ color: rgb(tplConfig.secondaryTextColor) }}>
-                      {invoice.customer_address}
-                    </p>
-                  )}
-                  {invoice.customer_email && (
-                    <p className="m-0 text-sm" style={{ color: rgb(tplConfig.secondaryTextColor) }}>
-                      {invoice.customer_email}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div>
-                <h3
-                  className="mb-3 text-sm font-semibold uppercase tracking-wide transition-colors duration-300"
-                  style={{ color: rgb(tplConfig.secondaryTextColor) }}
-                >
-                  Deliver To
-                </h3>
-                <div className="space-y-2">
-                  {invoice.delivery_address ? (
-                    <p className="m-0 text-sm whitespace-pre-line" style={{ color: rgb(tplConfig.secondaryTextColor) }}>
-                      {invoice.delivery_address}
-                    </p>
-                  ) : (
-                    <p className="m-0 text-sm italic" style={{ color: rgb(tplConfig.secondaryTextColor) }}>
-                      Same as billing address
-                    </p>
-                  )}
-                  {invoice.delivery_conditions && (
-                    <div className="mt-2">
-                      <span
-                        className="inline-block px-3 py-1 rounded-full text-xs font-semibold uppercase transition-colors duration-300"
-                        style={{
-                          backgroundColor: rgba(tplConfig.primaryColor, 0.1),
-                          color: rgb(tplConfig.primaryColor),
-                        }}
-                      >
-                        {invoice.delivery_conditions}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ── Dates & Terms ── */}
-          <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
-            <h3
-              className="mb-3 text-sm font-semibold uppercase tracking-wide transition-colors duration-300"
-              style={{ color: rgb(tplConfig.secondaryTextColor) }}
-            >
-              Invoice Details
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-              <div>
-                <label className="block text-xs font-medium mb-1 uppercase tracking-wide" style={{ color: rgb(tplConfig.secondaryTextColor) }}>
-                  Issue Date
-                </label>
-                <p className="m-0 text-base" style={{ color: rgb(tplConfig.textColor) }}>
-                  {formatDate(invoice.issue_date)}
-                </p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1 uppercase tracking-wide" style={{ color: rgb(tplConfig.secondaryTextColor) }}>
-                  Due Date
-                </label>
-                <p className="m-0 text-base" style={{ color: rgb(tplConfig.textColor) }}>
-                  {formatDate(invoice.due_date)}
-                </p>
-              </div>
-              {invoice.terms && (
-                <div>
-                  <label className="block text-xs font-medium mb-1 uppercase tracking-wide" style={{ color: rgb(tplConfig.secondaryTextColor) }}>
-                    Terms
-                  </label>
-                  <p className="m-0 text-base" style={{ color: rgb(tplConfig.textColor) }}>{invoice.terms}</p>
-                </div>
-              )}
-              {invoice.order_number && (
-                <div>
-                  <label className="block text-xs font-medium mb-1 uppercase tracking-wide" style={{ color: rgb(tplConfig.secondaryTextColor) }}>
-                    Order Number
-                  </label>
-                  <p className="m-0 text-base" style={{ color: rgb(tplConfig.textColor) }}>
-                    {invoice.order_number}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── Line Items Table ── */}
-          <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
-            <h3
-              className="mb-3 text-sm font-semibold uppercase tracking-wide transition-colors duration-300"
-              style={{ color: rgb(tplConfig.secondaryTextColor) }}
-            >
-              Invoice Items
-            </h3>
-            {lineItems.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table
-                  className="w-full text-sm transition-all duration-300"
-                  style={{
-                    borderCollapse: tplConfig.tableBorders ? 'collapse' : 'separate',
-                    borderSpacing: tplConfig.tableBorders ? '0' : '0 1px',
-                  }}
-                >
-                  <thead>
-                    <tr
-                      className="transition-colors duration-300"
-                      style={{
-                        backgroundColor: rgb(tplConfig.tableHeaderBg),
-                        color: rgb(tplConfig.tableHeaderText),
-                      }}
-                    >
-                      <th
-                        className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide"
-                        style={{
-                          borderBottom: tplConfig.tableBorders ? `1px solid ${rgba(tplConfig.primaryColor, 0.2)}` : 'none',
-                          borderRight: tplConfig.tableColumnDividers ? `1px solid ${rgba(tplConfig.tableHeaderText, 0.2)}` : 'none',
-                        }}
-                      >
-                        SKU
-                      </th>
-                      <th
-                        className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide"
-                        style={{
-                          borderBottom: tplConfig.tableBorders ? `1px solid ${rgba(tplConfig.primaryColor, 0.2)}` : 'none',
-                          borderRight: tplConfig.tableColumnDividers ? `1px solid ${rgba(tplConfig.tableHeaderText, 0.2)}` : 'none',
-                        }}
-                      >
-                        Description
-                      </th>
-                      <th
-                        className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide"
-                        style={{
-                          borderBottom: tplConfig.tableBorders ? `1px solid ${rgba(tplConfig.primaryColor, 0.2)}` : 'none',
-                          borderRight: tplConfig.tableColumnDividers ? `1px solid ${rgba(tplConfig.tableHeaderText, 0.2)}` : 'none',
-                        }}
-                      >
-                        Qty
-                      </th>
-                      <th
-                        className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide"
-                        style={{
-                          borderBottom: tplConfig.tableBorders ? `1px solid ${rgba(tplConfig.primaryColor, 0.2)}` : 'none',
-                          borderRight: tplConfig.tableColumnDividers ? `1px solid ${rgba(tplConfig.tableHeaderText, 0.2)}` : 'none',
-                        }}
-                      >
-                        Unit Price
-                      </th>
-                      <th
-                        className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide"
-                        style={{
-                          borderBottom: tplConfig.tableBorders ? `1px solid ${rgba(tplConfig.primaryColor, 0.2)}` : 'none',
-                        }}
-                      >
-                        Line Total
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lineItems.map((item, idx) => {
-                      const qty = Number(item.quantity) || 0;
-                      const unitPrice = Number(item.unit_price) || 0;
-                      const lineTotal = Number(item.total) ?? qty * unitPrice;
-                      const isAlt = idx % 2 === 1;
-                      return (
-                        <tr
-                          key={item.id ?? `${item.description}-${qty}`}
-                          className="transition-colors duration-300"
-                          style={{
-                            backgroundColor: tplConfig.tableAlternateRows && isAlt
-                              ? rgb(tplConfig.tableAlternateRowBg)
-                              : 'transparent',
-                            borderBottom: tplConfig.tableBorders
-                              ? `1px solid ${rgba(tplConfig.primaryColor, 0.1)}`
-                              : `1px solid rgba(200,200,200,0.3)`,
-                          }}
-                        >
-                          <td
-                            className="px-3 py-2 font-mono text-xs"
-                            style={{
-                              color: rgb(tplConfig.secondaryTextColor),
-                              borderRight: tplConfig.tableColumnDividers ? `1px solid ${rgba(tplConfig.primaryColor, 0.08)}` : 'none',
-                            }}
-                          >
-                            {item.sku || '—'}
-                          </td>
-                          <td
-                            className="px-3 py-2"
-                            style={{
-                              color: rgb(tplConfig.textColor),
-                              borderRight: tplConfig.tableColumnDividers ? `1px solid ${rgba(tplConfig.primaryColor, 0.08)}` : 'none',
-                            }}
-                          >
-                            {item.description}
-                          </td>
-                          <td
-                            className="px-3 py-2 text-right"
-                            style={{
-                              color: rgb(tplConfig.textColor),
-                              borderRight: tplConfig.tableColumnDividers ? `1px solid ${rgba(tplConfig.primaryColor, 0.08)}` : 'none',
-                            }}
-                          >
-                            {qty}
-                          </td>
-                          <td
-                            className="px-3 py-2 text-right"
-                            style={{
-                              color: rgb(tplConfig.textColor),
-                              borderRight: tplConfig.tableColumnDividers ? `1px solid ${rgba(tplConfig.primaryColor, 0.08)}` : 'none',
-                            }}
-                          >
-                            {formatCurrency(unitPrice, invoice.currency)}
-                          </td>
-                          <td className="px-3 py-2 text-right font-medium" style={{ color: rgb(tplConfig.textColor) }}>
-                            {formatCurrency(lineTotal, invoice.currency)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="m-0 p-4 text-sm rounded-lg" style={{ color: rgb(tplConfig.secondaryTextColor), backgroundColor: rgba(tplConfig.primaryColor, 0.04) }}>
-                No line items on this invoice.
-              </p>
+        {/* ── Header ── */}
+        <div className="flex items-start justify-between pb-4 mb-4 border-b-2 border-gray-300 dark:border-gray-600">
+          {/* Left: logo + business name + address */}
+          <div className="flex-1 min-w-0">
+            {logoUrl && (
+              <img src={logoUrl} alt="logo" className="mb-2 max-h-14 max-w-[120px] object-contain" />
+            )}
+            <p className="text-sm font-bold text-gray-800 dark:text-gray-100 leading-tight">{business?.name ?? '—'}</p>
+            {business?.address && (
+              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 whitespace-pre-line leading-snug max-w-[160px]">{business.address}</p>
             )}
           </div>
 
-          {/* ── Banking Details & Totals ── */}
-          <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                {business?.banking_details && (
-                  <>
-                    <h3
-                      className="mb-3 text-sm font-semibold uppercase tracking-wide transition-colors duration-300"
-                      style={{ color: rgb(tplConfig.secondaryTextColor) }}
-                    >
-                      Banking Details
-                    </h3>
-                    <div className="p-4 rounded-lg" style={{ backgroundColor: rgba(tplConfig.primaryColor, 0.04) }}>
-                      <p className="m-0 text-sm whitespace-pre-line" style={{ color: rgb(tplConfig.secondaryTextColor) }}>
-                        {business.banking_details}
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
+          {/* Middle: Tel / VAT / Reg */}
+          <div className="flex-1 flex flex-col gap-0.5 text-xs text-gray-500 dark:text-gray-400 pt-1 px-4">
+            {business?.phone && <span>Tel: {business.phone}</span>}
+            {business?.vat_number && <span>VAT: {business.vat_number}</span>}
+            {business?.registration_number && <span>Reg: {business.registration_number}</span>}
+            {contacts[0]?.email && <span>{contacts[0].email}</span>}
+          </div>
 
-              <div>
-                <h3
-                  className="mb-3 text-sm font-semibold uppercase tracking-wide transition-colors duration-300"
-                  style={{ color: rgb(tplConfig.secondaryTextColor) }}
-                >
-                  Totals
-                </h3>
-                <div
-                  className="rounded-lg transition-all duration-300"
-                  style={{
-                    padding: tplConfig.totalsBoxed ? '16px' : '0px',
-                    backgroundColor: tplConfig.totalsBoxed ? rgba(tplConfig.primaryColor, 0.05) : 'transparent',
-                    border: tplConfig.totalsBoxed ? `1px solid ${rgba(tplConfig.primaryColor, 0.15)}` : 'none',
-                  }}
-                >
-                  <div className="space-y-0">
-                    <div
-                      className="flex justify-between py-3 text-base transition-colors duration-300"
-                      style={{ color: rgb(tplConfig.textColor), borderBottom: `1px solid ${rgba(tplConfig.primaryColor, 0.12)}` }}
+          {/* Right: document title / number / status */}
+          <div className="flex flex-col items-end gap-0.5 shrink-0">
+            <p className="text-2xl font-bold text-gray-800 dark:text-gray-100 tracking-wide uppercase leading-none">Invoice</p>
+            <p className="text-base font-semibold text-gray-700 dark:text-gray-200">{invoice.invoice_number}</p>
+            {invoice.order_number && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">Order: {invoice.order_number}</p>
+            )}
+            <span className={`mt-1 inline-block px-2 py-0.5 rounded text-xs font-semibold uppercase ${getStatusBadgeClass(invoice.status)}`}>
+              {invoice.status}
+            </span>
+          </div>
+        </div>
+
+        {/* ── Bill To / Deliver To ── */}
+        <div className="grid grid-cols-2 gap-6 pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
+          <div>
+            <p className="mb-1 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Bill To</p>
+            <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">{invoice.customer_name}</p>
+            {invoice.customer_vat_number && <p className="text-xs text-gray-500 dark:text-gray-400">VAT: {invoice.customer_vat_number}</p>}
+            {invoice.customer_address && <p className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-line">{invoice.customer_address}</p>}
+            {invoice.customer_email && <p className="text-xs text-gray-500 dark:text-gray-400">{invoice.customer_email}</p>}
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Deliver To</p>
+            {invoice.delivery_address ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-line">{invoice.delivery_address}</p>
+            ) : (
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">Same as billing address</p>
+            )}
+            {invoice.delivery_conditions && (
+              <p className="mt-1 text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase">
+                Delivery: {invoice.delivery_conditions === 'collect' ? 'COLLECT' : 'DELIVER'}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ── Dates row ── */}
+        <div className="flex flex-wrap gap-x-8 gap-y-1 pb-4 mb-4 border-b border-gray-200 dark:border-gray-700 text-xs text-gray-700 dark:text-gray-300">
+          <span><span className="text-gray-400 dark:text-gray-500">Issue Date: </span>{formatDate(invoice.issue_date)}</span>
+          <span><span className="text-gray-400 dark:text-gray-500">Due Date: </span>{formatDate(invoice.due_date)}</span>
+          {invoice.terms && (
+            <span><span className="text-gray-400 dark:text-gray-500">Terms: </span>{invoice.terms}</span>
+          )}
+        </div>
+
+        {/* ── Line items table ── */}
+        <div className="mb-4">
+          {lineItems.length > 0 ? (
+            <table className="w-full border-collapse text-xs">
+              <thead>
+                <tr className="bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                  <th className={`${thClass} w-8 border-r border-gray-200 dark:border-gray-600`}>No.</th>
+                  <th className={`${thClass} w-20 border-r border-gray-200 dark:border-gray-600`}>SKU</th>
+                  <th className={`${thClass} border-r border-gray-200 dark:border-gray-600`}>Description</th>
+                  <th className={`${thClass} text-right border-r border-gray-200 dark:border-gray-600`}>Qty</th>
+                  <th className={`${thClass} text-right border-r border-gray-200 dark:border-gray-600`}>Unit Price</th>
+                  <th className={`${thClass} text-right`}>Line Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lineItems.map((item, idx) => {
+                  const qty = Number(item.quantity) || 0;
+                  const unitPrice = Number(item.unit_price) || 0;
+                  const itemTotal = Number(item.total) ?? qty * unitPrice;
+                  return (
+                    <tr
+                      key={item.id ?? `${item.description}-${idx}`}
+                      className={`border border-gray-200 dark:border-gray-700 ${idx % 2 === 1 ? 'bg-gray-50 dark:bg-gray-700/30' : ''}`}
                     >
-                      <span>Subtotal</span>
-                      <span>{formatCurrency(subtotal, invoice.currency)}</span>
-                    </div>
-                    <div
-                      className="flex justify-between py-3 text-base transition-colors duration-300"
-                      style={{ color: rgb(tplConfig.textColor), borderBottom: `1px solid ${rgba(tplConfig.primaryColor, 0.12)}` }}
-                    >
-                      <span>VAT ({vatRate}%)</span>
-                      <span>{formatCurrency(vatAmount, invoice.currency)}</span>
-                    </div>
-                    <div
-                      className="flex justify-between py-3 mt-1 text-xl font-semibold transition-colors duration-300"
-                      style={{
-                        color: rgb(tplConfig.primaryColor),
-                        borderTop: `2px solid ${rgb(tplConfig.primaryColor)}`,
-                      }}
-                    >
-                      <span>Total</span>
-                      <span>{formatCurrency(total, invoice.currency)}</span>
+                      <td className="px-2 py-1 text-gray-400 dark:text-gray-500 border-r border-gray-200 dark:border-gray-600">{idx + 1}</td>
+                      <td className="px-2 py-1 text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-600">{item.sku ?? '—'}</td>
+                      <td className="px-2 py-1 text-gray-800 dark:text-gray-200 border-r border-gray-200 dark:border-gray-600">{item.description}</td>
+                      <td className="px-2 py-1 text-right text-green-600 dark:text-green-400 font-medium border-r border-gray-200 dark:border-gray-600">
+                        {qty}{item.unit_type === 'hrs' ? ' hrs' : ''}
+                      </td>
+                      <td className="px-2 py-1 text-right text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-600">{formatCurrency(unitPrice, invoice.currency)}</td>
+                      <td className="px-2 py-1 text-right text-gray-800 dark:text-gray-200 font-medium">{formatCurrency(itemTotal, invoice.currency)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-xs text-gray-400 dark:text-gray-500 py-2">No line items.</p>
+          )}
+        </div>
+
+        {/* ── Banking + Totals — pushed to bottom ── */}
+        <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="grid grid-cols-2 gap-8 items-start">
+            {/* Banking */}
+            {bankingDetails.length > 0 ? (
+              <div className="text-xs">
+                <p className="mb-1.5 font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">Banking Details</p>
+                {bankingDetails.map((bd) => (
+                  <div key={bd.id} className="mb-3">
+                    {bd.label && <p className="font-semibold text-gray-700 dark:text-gray-300 mb-0.5">{bd.label}</p>}
+                    <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-gray-600 dark:text-gray-400">
+                      <span className="text-gray-400 dark:text-gray-500">Bank</span><span>{bd.bank_name}</span>
+                      {bd.account_holder && (<><span className="text-gray-400 dark:text-gray-500">Acc. Holder</span><span>{bd.account_holder}</span></>)}
+                      <span className="text-gray-400 dark:text-gray-500">Account No.</span><span>{bd.account_number}</span>
+                      {bd.account_type && (<><span className="text-gray-400 dark:text-gray-500">Acc. Type</span><span>{ACCOUNT_TYPES.find((t) => t.value === bd.account_type)?.label ?? bd.account_type}</span></>)}
+                      {bd.branch_code && (<><span className="text-gray-400 dark:text-gray-500">Branch Code</span><span>{bd.branch_code}</span></>)}
+                      {bd.swift_code && (<><span className="text-gray-400 dark:text-gray-500">SWIFT</span><span>{bd.swift_code}</span></>)}
                     </div>
                   </div>
+                ))}
+              </div>
+            ) : <div />}
+
+            {/* Totals */}
+            <div className="text-xs">
+              {globalDiscountPercent > 0 && (
+                <div className="flex justify-between py-1 border-b border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                  <span>Lines subtotal</span>
+                  <span>{formatCurrency(linesSubtotal, invoice.currency)}</span>
                 </div>
+              )}
+              {globalDiscountPercent > 0 && (
+                <div className="flex justify-between py-1 border-b border-gray-200 dark:border-gray-600 text-green-600 dark:text-green-400">
+                  <span>Discount ({globalDiscountPercent}%)</span>
+                  <span>−{formatCurrency(discountAmount, invoice.currency)}</span>
+                </div>
+              )}
+              <div className="flex justify-between py-1 border-b border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                <span>Subtotal</span>
+                <span>{formatCurrency(subtotal, invoice.currency)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                <span>VAT ({vatRate}%)</span>
+                <span>{formatCurrency(vatAmount, invoice.currency)}</span>
+              </div>
+              <div className="flex justify-between py-2 mt-1 border-t-2 border-gray-700 dark:border-gray-300 text-sm font-bold text-gray-900 dark:text-gray-100">
+                <span>Total</span>
+                <span>{formatCurrency(total, invoice.currency)}</span>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* ── Notes ── */}
-          {invoice.notes && (
-            <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
-              <h3
-                className="mb-3 text-sm font-semibold uppercase tracking-wide transition-colors duration-300"
-                style={{ color: rgb(tplConfig.secondaryTextColor) }}
-              >
-                Notes
-              </h3>
-              <p
-                className="m-0 p-4 rounded-lg leading-relaxed whitespace-pre-wrap text-sm"
-                style={{ color: rgb(tplConfig.secondaryTextColor), backgroundColor: rgba(tplConfig.primaryColor, 0.04) }}
-              >
-                {invoice.notes}
-              </p>
+        {/* ── Signature ── */}
+        <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex gap-8 text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex items-end gap-2">
+              <span className="whitespace-nowrap">Full Name &amp; Surname:</span>
+              <span className="flex-1 min-w-[120px] border-b border-gray-400 dark:border-gray-500 pb-0.5">&nbsp;</span>
             </div>
-          )}
+            <div className="flex items-end gap-2">
+              <span>Date:</span>
+              <span className="min-w-[80px] border-b border-gray-400 dark:border-gray-500 pb-0.5">&nbsp;</span>
+            </div>
+            <div className="flex items-end gap-2">
+              <span>Signature:</span>
+              <span className="flex-1 min-w-[100px] border-b border-gray-400 dark:border-gray-500 pb-0.5">&nbsp;</span>
+            </div>
+          </div>
+        </div>
 
-          {/* ── Footer ── */}
-          {invoice.created_at && (
-            <div className="mt-8 pt-4 text-right transition-all duration-300" style={{
-              borderTop: tplConfig.footerAccentLine
-                ? `2px solid ${rgb(tplConfig.primaryColor)}`
-                : '1px solid rgba(200,200,200,0.4)',
-            }}>
-              <p className="m-0 text-sm" style={{ color: rgb(tplConfig.secondaryTextColor) }}>
-                Created: {new Date(invoice.created_at).toLocaleString()}
-                {invoice.updated_at && invoice.updated_at !== invoice.created_at && (
-                  <> &bull; Updated: {new Date(invoice.updated_at).toLocaleString()}</>
-                )}
-              </p>
-            </div>
-          )}
+        {/* ── Footer ── */}
+        <div className="mt-auto pt-6 text-center">
+          <p className="text-xs text-gray-300 dark:text-gray-600">Foroman by Bobo Softwares (2026)</p>
         </div>
       </div>
+
+      {/* ── Page 2 — notes ── */}
+      {hasPage2 && (
+        <div className="invoice-print-page bg-white dark:bg-gray-800 w-full min-h-[1123px] p-8 rounded-lg shadow border border-gray-200 dark:border-gray-700 flex flex-col print:shadow-none print:border-none print:rounded-none print:min-h-0 print:p-0">
+          <div className="pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
+            <p className="mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Notes</p>
+            <p className="m-0 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap text-sm">
+              {invoice.notes}
+            </p>
+          </div>
+          <div className="mt-auto pt-6 text-center">
+            <p className="text-xs text-gray-300 dark:text-gray-600">Foroman by Bobo Softwares (2026)</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

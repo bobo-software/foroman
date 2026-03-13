@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { CreateQuotationDto, QuotationStatus, QuotationLine } from '../../types/quotation';
+import type { CreateQuotationDto, QuotationStatus, QuotationLine, QuotationLineUnitType } from '../../types/quotation';
 import type { Company } from '../../types/company';
 import type { Item } from '../../types/item';
 import type { Project } from '../../types/project';
@@ -27,6 +27,7 @@ interface LineRow {
   quantity: number;
   unit_price: number;
   discountPercent: number;
+  unit_type: QuotationLineUnitType;
 }
 
 function lineTotal(row: LineRow): number {
@@ -46,7 +47,7 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
   const [globalDiscountPercent, setGlobalDiscountPercent] = useState(0);
   const [initialCompanyApplied, setInitialCompanyApplied] = useState(false);
   const [initialProjectApplied, setInitialProjectApplied] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [activeLineId, setActiveLineId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<CreateQuotationDto>({
     company_id: undefined,
@@ -72,12 +73,15 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
   });
 
   useEffect(() => {
-    Promise.all([CompanyService.findAll(), ItemService.findAll()]).then(
-      ([comps, items]) => {
-        setCompanies(comps);
-        setStockItems(items);
-      }
-    );
+    const businessId = useBusinessStore.getState().currentBusiness?.id;
+    const itemWhere = businessId != null ? { business_id: businessId } : undefined;
+    Promise.all([
+      CompanyService.findAll(),
+      ItemService.findAll({ where: itemWhere, orderBy: 'name', orderDirection: 'ASC' }),
+    ]).then(([comps, items]) => {
+      setCompanies(comps);
+      setStockItems(items);
+    });
   }, []);
 
   const loadProjectsForCompany = useCallback(async (companyId: number) => {
@@ -218,6 +222,7 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
           quantity: item.quantity || 1,
           unit_price: Number(item.unit_price) || 0,
           discountPercent: Number(item.discount_percent ?? 0),
+          unit_type: item.unit_type ?? 'qty',
         }));
         setLineRows(rows);
         setGlobalDiscountPercent(Number(quotation.discount_percent ?? 0));
@@ -307,8 +312,8 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
 
   const addLine = useCallback(() => {
     const id = crypto.randomUUID?.() ?? `line-${Date.now()}`;
-    setLineRows((prev) => [...prev, { id, description: '', quantity: 1, unit_price: 0, discountPercent: 0 }]);
-    setEditingId(id);
+    setLineRows((prev) => [...prev, { id, description: '', quantity: 0, unit_price: 0, discountPercent: 0, unit_type: 'qty' }]);
+    setActiveLineId(id);
   }, []);
 
   const removeLine = useCallback((id: string) => {
@@ -352,6 +357,7 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
         unit_price: r.unit_price,
         discount_percent: r.discountPercent || 0,
         total: lineTotal(r),
+        unit_type: r.unit_type,
       }));
     const businessId = useBusinessStore.getState().currentBusiness?.id;
     const payload: CreateQuotationDto = {
@@ -606,146 +612,156 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
             Line items
           </h3>
-          {lineRows.length === 0 && editingId === null && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
-              No items yet. Click &quot;+ Add line&quot; to add one.
-            </p>
-          )}
-          {lineRows.length > 0 && (
-            <div className="mb-1">
-              {lineRows.map((row) =>
-                row.id === editingId ? (
-                  /* ── edit mode ── */
-                  <div
-                    key={row.id}
-                    className="grid grid-cols-1 gap-2 p-2 mb-1 rounded-md bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 md:grid-cols-12 md:items-end"
-                  >
-                    <div className="md:col-span-5">
-                      <div className={groupClass}>
-                        <label className={labelClass}>Search catalogue (optional)</label>
-                        <AppLabledAutocomplete
-                          label=""
-                          options={stockItems}
-                          value=""
-                          displayValue=""
-                          accessor="name"
-                          valueAccessor="id"
-                          onSelect={onItemSelect(row.id)}
-                          onClear={() => {}}
-                          placeholder="Search item to pre-fill…"
-                          className="mb-0"
-                        />
-                      </div>
-                      <div className={`${groupClass} mt-2`}>
-                        <label className={labelClass}>Description *</label>
-                        <input
-                          type="text"
-                          value={row.description}
-                          onChange={(e) => updateLine(row.id, { description: e.target.value })}
-                          className={inputClass}
-                          placeholder="Item description"
-                          autoFocus
-                        />
-                      </div>
+          <div className="mb-1 space-y-1">
+            {lineRows.map((row) =>
+              activeLineId === row.id ? (
+                /* ── edit mode ── */
+                <div
+                  key={row.id}
+                  className="grid grid-cols-1 gap-2 p-2 rounded-md bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 md:grid-cols-12 md:items-end"
+                >
+                  <div className="md:col-span-5">
+                    <div className={groupClass}>
+                      <label className={labelClass}>Search catalogue (optional)</label>
+                      <AppLabledAutocomplete
+                        label=""
+                        options={stockItems}
+                        value=""
+                        displayValue=""
+                        accessor="name"
+                        valueAccessor="id"
+                        onSelect={onItemSelect(row.id)}
+                        onClear={() => {}}
+                        placeholder="Search item to pre-fill…"
+                        className="mb-0"
+                      />
                     </div>
-                    <div className={`${groupClass} md:col-span-1`}>
-                      <label className={labelClass}>Qty</label>
+                    <div className={`${groupClass} mt-2`}>
+                      <label className={labelClass}>Description *</label>
+                      <input
+                        type="text"
+                        value={row.description}
+                        onChange={(e) => updateLine(row.id, { description: e.target.value })}
+                        className={inputClass}
+                        placeholder="Item description"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <div className={`${groupClass} md:col-span-2`}>
+                    <label className={labelClass}>{row.unit_type === 'hrs' ? 'Hrs' : 'Qty'}</label>
+                    <div className="flex gap-1">
                       <input
                         type="number"
                         min={1}
-                        value={row.quantity}
-                        onChange={(e) => updateLine(row.id, { quantity: parseInt(e.target.value, 10) || 1 })}
-                        className={inputClass}
+                        value={row.quantity || ''}
+                        onChange={(e) => updateLine(row.id, { quantity: parseInt(e.target.value, 10) || 0 })}
+                        className={`${inputClass} flex-1`}
                       />
-                    </div>
-                    <div className={`${groupClass} md:col-span-2`}>
-                      <label className={labelClass}>Unit price</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min={0}
-                        value={row.unit_price}
-                        onChange={(e) => updateLine(row.id, { unit_price: parseFloat(e.target.value) || 0 })}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className={`${groupClass} md:col-span-1`}>
-                      <label className={labelClass}>Disc %</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min={0}
-                        max={100}
-                        value={row.discountPercent}
-                        onChange={(e) => updateLine(row.id, { discountPercent: parseFloat(e.target.value) || 0 })}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className={`${groupClass} md:col-span-2`}>
-                      <label className={labelClass}>Total</label>
-                      <input
-                        type="text"
-                        readOnly
-                        value={formatCurrency(lineTotal(row), formData.currency)}
-                        className={`${inputClass} ${readonlyClass}`}
-                      />
-                    </div>
-                    <div className="flex items-end gap-1 md:col-span-1">
-                      <button
-                        type="button"
-                        onClick={() => setEditingId(null)}
-                        className="flex-1 px-2 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-md"
-                        aria-label="Done editing"
-                      >
-                        Done
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { removeLine(row.id); setEditingId(null); }}
-                        className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                        aria-label="Remove line"
-                      >
-                        ×
-                      </button>
+                      <div className="flex rounded-md overflow-hidden border border-gray-300 dark:border-gray-600 text-xs font-medium shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => updateLine(row.id, { unit_type: 'qty' })}
+                          className={`px-2 py-1 transition-colors ${row.unit_type === 'qty' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
+                        >
+                          Qty
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateLine(row.id, { unit_type: 'hrs' })}
+                          className={`px-2 py-1 transition-colors ${row.unit_type === 'hrs' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'}`}
+                        >
+                          Hrs
+                        </button>
+                      </div>
                     </div>
                   </div>
-                ) : (
-                  /* ── view mode ── */
-                  <div
-                    key={row.id}
-                    className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/40 group"
-                  >
-                    <span className="flex-1 text-sm text-gray-900 dark:text-gray-100 truncate">
-                      {row.description || <span className="italic text-gray-400">No description</span>}
-                    </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {row.quantity} × {formatCurrency(row.unit_price, formData.currency)}
-                      {row.discountPercent > 0 && ` − ${row.discountPercent}%`}
-                    </span>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">
-                      {formatCurrency(lineTotal(row), formData.currency)}
-                    </span>
+                  <div className={`${groupClass} md:col-span-1`}>
+                    <label className={labelClass}>Unit price</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={row.unit_price || ''}
+                      onChange={(e) => updateLine(row.id, { unit_price: parseFloat(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className={`${groupClass} md:col-span-1`}>
+                    <label className={labelClass}>Disc %</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      max={100}
+                      value={row.discountPercent || ''}
+                      onChange={(e) => updateLine(row.id, { discountPercent: parseFloat(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className={`${groupClass} md:col-span-2`}>
+                    <label className={labelClass}>Total</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={formatCurrency(lineTotal(row), formData.currency)}
+                      className={`${inputClass} ${readonlyClass}`}
+                    />
+                  </div>
+                  <div className="flex items-end gap-1 md:col-span-1">
                     <button
                       type="button"
-                      onClick={() => setEditingId(row.id)}
-                      className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                      aria-label="Edit line"
+                      onClick={() => setActiveLineId(null)}
+                      className="flex-1 px-2 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-md"
                     >
-                      ✎
+                      Done
                     </button>
                     <button
                       type="button"
-                      onClick={() => removeLine(row.id)}
-                      className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => { removeLine(row.id); setActiveLineId(null); }}
+                      className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                       aria-label="Remove line"
                     >
                       ×
                     </button>
                   </div>
-                )
-              )}
-            </div>
-          )}
+                </div>
+              ) : (
+                /* ── view mode ── */
+                <div
+                  key={row.id}
+                  className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/40 group"
+                >
+                  <span className="flex-1 text-sm text-gray-900 dark:text-gray-100 truncate">
+                    {row.description || <span className="italic text-gray-400">No description</span>}
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {row.quantity}{row.unit_type === 'hrs' ? ' hrs' : ''} × {formatCurrency(row.unit_price, formData.currency)}
+                    {row.discountPercent > 0 && ` − ${row.discountPercent}%`}
+                  </span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200 whitespace-nowrap">
+                    {formatCurrency(lineTotal(row), formData.currency)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveLineId(row.id)}
+                    className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label="Edit line"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeLine(row.id)}
+                    className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label="Remove line"
+                  >
+                    ×
+                  </button>
+                </div>
+              )
+            )}
+          </div>
           <button
             type="button"
             onClick={addLine}
@@ -767,7 +783,7 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
                 step="0.01"
                 min={0}
                 max={100}
-                value={globalDiscountPercent}
+                value={globalDiscountPercent || ''}
                 onChange={(e) =>
                   setGlobalDiscountPercent(parseFloat(e.target.value) || 0)
                 }
@@ -783,7 +799,7 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
                 type="number"
                 step="0.01"
                 min={0}
-                value={formData.tax_rate}
+                value={formData.tax_rate || ''}
                 onChange={(e) =>
                   handleChange('tax_rate', parseFloat(e.target.value) || 0)
                 }

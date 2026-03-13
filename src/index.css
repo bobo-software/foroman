@@ -361,6 +361,50 @@
 
 }
 
+/* ── Print styles ── */
+@media print {
+  @page {
+    size: A4;
+    margin: 1.5cm;
+  }
+
+  html, body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    background: white !important;
+  }
+
+  /* Hide everything, then reveal only the quotation detail */
+  body * {
+    visibility: hidden;
+  }
+
+  .quotation-print-root,
+  .quotation-print-root *,
+  .invoice-print-root,
+  .invoice-print-root * {
+    visibility: visible;
+  }
+
+  .quotation-print-root,
+  .invoice-print-root {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+  }
+
+  /* Page break between page 1 and page 2 */
+  .quotation-print-page + .quotation-print-page,
+  .invoice-print-page + .invoice-print-page {
+    page-break-before: always;
+    break-before: page;
+    margin-top: 0;
+  }
+}
+
 /* Add this to your CSS file */
 .modal-enter {
   opacity: 0;
