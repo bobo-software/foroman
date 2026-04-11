@@ -190,10 +190,6 @@ export function PaymentForm({ paymentId, initialCompanyId, initialProjectId, ini
       setError('Amount must be greater than 0');
       return;
     }
-    if (!formData.project_id) {
-      setError('Project is required');
-      return;
-    }
     try {
       setLoading(true);
       setError(null);
@@ -272,7 +268,7 @@ export function PaymentForm({ paymentId, initialCompanyId, initialProjectId, ini
         </div>
         <div className="pb-3 mb-4 border-b border-gray-200 dark:border-gray-700">
           <AppLabledAutocomplete
-            label="Project *"
+            label="Project (optional)"
             options={projects}
             value={selectedProject?.id != null ? String(selectedProject.id) : ''}
             displayValue={selectedProject?.name ?? ''}
@@ -280,9 +276,8 @@ export function PaymentForm({ paymentId, initialCompanyId, initialProjectId, ini
             valueAccessor="id"
             onSelect={handleProjectSelect}
             onClear={handleProjectClear}
-            required
             disabled={!selectedCompany}
-            placeholder={selectedCompany ? 'Search project...' : 'Select company first'}
+            placeholder={selectedCompany ? 'Search project or leave empty…' : 'Select company first'}
           />
         </div>
         <div className="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
