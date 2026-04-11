@@ -188,24 +188,32 @@ export function CompanyDetailPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <AppPageHeader
         title={company.name}
-        subtitle="Company Details"
+        subtitle="Company details"
         showBackButton={true}
-        showButton={true}
-        buttonText="Back"
         onBackClick={() => navigate(-1)}
       />
 
-<div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <label
-            htmlFor="project-scope"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Project scope
-          </label>
+      <div className="flex items-end justify-between border-b border-slate-200 dark:border-slate-700">
+        <nav className="flex gap-0.5 flex-wrap" aria-label="Tabs">
+          {tabButtons.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-3.5 py-2 text-xs font-medium rounded-t-md border-b-2 -mb-px transition-colors ${
+                activeTab === tab.id
+                  ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 bg-white dark:bg-slate-800'
+                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+        <div className="flex items-center gap-2 pb-1.5">
           <select
             id="project-scope"
             value={selectedProjectId === 'all' ? 'all' : String(selectedProjectId)}
@@ -216,7 +224,7 @@ export function CompanyDetailPage() {
               }
               setSelectedProjectId(Number(e.target.value));
             }}
-            className="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+            className="rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs text-slate-700 dark:text-slate-300"
           >
             <option value="all">All projects</option>
             {projects.map((project) => (
@@ -225,35 +233,14 @@ export function CompanyDetailPage() {
               </option>
             ))}
           </select>
-          <Link to={`/app/companies/${company.id}/projects`}
-            className="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 no-underline hover:bg-slate-50 dark:hover:bg-slate-700"
+          <Link
+            to={`/app/companies/${company.id}/projects`}
+            className="px-2.5 py-1 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 no-underline transition-colors"
           >
-            Manage projects
+            Manage
           </Link>
         </div>
       </div>
-
-
-      <div className="border-b border-slate-200 dark:border-slate-700">
-        <nav className="flex gap-1 flex-wrap" aria-label="Tabs">
-          {tabButtons.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-colors ${
-                activeTab === tab.id
-                  ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 bg-white dark:bg-slate-800'
-                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      
 
       {activeTab === 'summary' && <CompanySummaryTab {...tabProps} />}
       {activeTab === 'contacts' && <CompanyContactsTab company={company} />}

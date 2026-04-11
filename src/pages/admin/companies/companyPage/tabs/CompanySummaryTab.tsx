@@ -31,212 +31,175 @@ export function CompanySummaryTab({ company, invoices, payments, docsLoading }: 
     return { invoicesTotal, paymentsTotal };
   }, [invoices, payments]);
 
-  return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
-      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="sm:col-span-2">
-          <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">Contact person</dt>
-          <dd className="mt-1 text-slate-800 dark:text-slate-200">{company.contact_person ?? '—'}</dd>
-        </div>
-        <div>
-          <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">Email</dt>
-          <dd className="mt-1 text-slate-800 dark:text-slate-200">{company.email ?? '—'}</dd>
-        </div>
-        <div>
-          <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">Phone</dt>
-          <dd className="mt-1 text-slate-800 dark:text-slate-200">{company.phone ?? '—'}</dd>
-        </div>
-        <div className="sm:col-span-2">
-          <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">Address</dt>
-          <dd className="mt-1 text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
-            {company.address ?? '—'}
-          </dd>
-        </div>
-      </dl>
+  const hasCredentials =
+    company.business_type ||
+    company.tax_id ||
+    company.registration_number ||
+    company.vat_number ||
+    company.industry ||
+    company.website;
 
-      <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm divide-y divide-slate-100 dark:divide-slate-700">
+
+      {/* Contact info */}
+      <div className="p-4">
+        <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">
+          Contact
+        </p>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+          {company.contact_person && (
+            <div className="col-span-2 sm:col-span-2">
+              <dt className="text-xs text-slate-400 dark:text-slate-500">Contact person</dt>
+              <dd className="mt-0.5 text-sm text-slate-800 dark:text-slate-200">{company.contact_person}</dd>
+            </div>
+          )}
+          {company.email && (
+            <div>
+              <dt className="text-xs text-slate-400 dark:text-slate-500">Email</dt>
+              <dd className="mt-0.5 text-sm text-slate-800 dark:text-slate-200 truncate">{company.email}</dd>
+            </div>
+          )}
+          {company.phone && (
+            <div>
+              <dt className="text-xs text-slate-400 dark:text-slate-500">Phone</dt>
+              <dd className="mt-0.5 text-sm text-slate-800 dark:text-slate-200">{company.phone}</dd>
+            </div>
+          )}
+          {company.address && (
+            <div className="col-span-2 sm:col-span-4">
+              <dt className="text-xs text-slate-400 dark:text-slate-500">Address</dt>
+              <dd className="mt-0.5 text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{company.address}</dd>
+            </div>
+          )}
+          {!company.contact_person && !company.email && !company.phone && !company.address && (
+            <div className="col-span-4">
+              <span className="text-sm text-slate-400 dark:text-slate-500">No contact details recorded.</span>
+            </div>
+          )}
+        </dl>
+      </div>
+
+      {/* Financial summary */}
+      <div className="p-4">
+        <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">
           Financial summary
-        </h3>
+        </p>
         {docsLoading ? (
-          <p className="text-slate-500 dark:text-slate-400 text-sm">Loading…</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">Loading…</p>
         ) : (
-          <div className="space-y-4">
-            {/* Statement summary: what they owe at a glance (costs - payments) */}
-            <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-4 border border-slate-200 dark:border-slate-600">
-              <dt className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
-                Statement summary (invoices − payments)
-              </dt>
-              <dd className="flex flex-wrap items-baseline gap-3 gap-y-1">
-                {Object.keys(balanceByCurrency).length === 0 ? (
-                  <span className="text-slate-500 dark:text-slate-400">No activity</span>
-                ) : (
-                  Object.entries(balanceByCurrency).map(([curr, bal]) => {
-                    const isOwed = bal > 0;
-                    const isCredit = bal < 0;
-                    const isZero = bal === 0;
-                    return (
-                      <span
-                        key={curr}
-                        className={`text-xl font-bold ${
-                          isOwed
-                            ? 'text-amber-600 dark:text-amber-400'
-                            : isCredit
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        {isOwed && 'Owed: '}
-                        {isCredit && 'Credit: '}
-                        {isZero && 'Balance: '}
-                        {formatCurrency(bal, curr)}
-                      </span>
-                    );
-                  })
-                )}
-              </dd>
+          <div className="space-y-3">
+            {/* Balance callout */}
+            <div className="flex flex-wrap gap-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+              {Object.keys(balanceByCurrency).length === 0 ? (
+                <span className="text-sm text-slate-400 dark:text-slate-500">No activity yet</span>
+              ) : (
+                Object.entries(balanceByCurrency).map(([curr, bal]) => {
+                  const label = bal > 0 ? 'Owed' : bal < 0 ? 'Credit' : 'Settled';
+                  const cls =
+                    bal > 0
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : bal < 0
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-slate-500 dark:text-slate-400';
+                  return (
+                    <div key={curr}>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">{label}</p>
+                      <p className={`text-xl font-bold leading-tight ${cls}`}>
+                        {formatCurrency(Math.abs(bal), curr)}
+                      </p>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
-            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-lg p-3 bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/60 dark:border-amber-800/40">
-                <dt className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                  Invoices (costs)
-                </dt>
-                <dd className="mt-1 flex flex-wrap gap-2 items-baseline">
-                  {Object.keys(totalsByCurrency.invoicesTotal).length === 0 ? (
-                    <span className="text-slate-500 dark:text-slate-400">—</span>
-                  ) : (
-                    Object.entries(totalsByCurrency.invoicesTotal).map(([curr, tot]) => (
-                      <span key={curr} className="font-semibold text-amber-800 dark:text-amber-200">
-                        {formatCurrency(tot, curr)}
-                      </span>
-                    ))
-                  )}
-                  <span className="text-slate-500 dark:text-slate-400 text-sm">
-                    ({invoices.length} invoice{invoices.length !== 1 ? 's' : ''})
-                  </span>
-                </dd>
+            {/* Invoices + payments breakdown */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded-lg bg-amber-50/60 dark:bg-amber-900/10 border border-amber-200/60 dark:border-amber-800/40">
+                <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">
+                  Invoiced
+                </p>
+                {Object.keys(totalsByCurrency.invoicesTotal).length === 0 ? (
+                  <span className="text-sm text-slate-400">—</span>
+                ) : (
+                  Object.entries(totalsByCurrency.invoicesTotal).map(([curr, tot]) => (
+                    <p key={curr} className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                      {formatCurrency(tot, curr)}
+                    </p>
+                  ))
+                )}
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                  {invoices.length} invoice{invoices.length !== 1 ? 's' : ''}
+                </p>
               </div>
-              <div className="rounded-lg p-3 bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200/60 dark:border-emerald-800/40">
-                <dt className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                  Payments received
-                </dt>
-                <dd className="mt-1 flex flex-wrap gap-2 items-baseline">
-                  {Object.keys(totalsByCurrency.paymentsTotal).length === 0 ? (
-                    <span className="text-slate-500 dark:text-slate-400">—</span>
-                  ) : (
-                    Object.entries(totalsByCurrency.paymentsTotal).map(([curr, tot]) => (
-                      <span key={curr} className="font-semibold text-emerald-800 dark:text-emerald-200">
-                        {formatCurrency(tot, curr)}
-                      </span>
-                    ))
-                  )}
-                  <span className="text-slate-500 dark:text-slate-400 text-sm">
-                    ({payments.length} payment{payments.length !== 1 ? 's' : ''})
-                  </span>
-                </dd>
+              <div className="p-3 rounded-lg bg-emerald-50/60 dark:bg-emerald-900/10 border border-emerald-200/60 dark:border-emerald-800/40">
+                <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-1">
+                  Received
+                </p>
+                {Object.keys(totalsByCurrency.paymentsTotal).length === 0 ? (
+                  <span className="text-sm text-slate-400">—</span>
+                ) : (
+                  Object.entries(totalsByCurrency.paymentsTotal).map(([curr, tot]) => (
+                    <p key={curr} className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+                      {formatCurrency(tot, curr)}
+                    </p>
+                  ))
+                )}
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                  {payments.length} payment{payments.length !== 1 ? 's' : ''}
+                </p>
               </div>
-              <div className="rounded-lg p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-600 sm:col-span-2 lg:col-span-1">
-                <dt className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Balance due (per currency)
-                </dt>
-                <dd className="mt-1 flex flex-wrap gap-2">
-                  {Object.keys(balanceByCurrency).length === 0 ? (
-                    <span className="text-slate-500 dark:text-slate-400">—</span>
-                  ) : (
-                    Object.entries(balanceByCurrency).map(([curr, bal]) => (
-                      <span
-                        key={curr}
-                        className={`font-semibold ${
-                          bal > 0
-                            ? 'text-amber-600 dark:text-amber-400'
-                            : bal < 0
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        {formatCurrency(bal, curr)}
-                      </span>
-                    ))
-                  )}
-                </dd>
-              </div>
-            </dl>
+            </div>
           </div>
         )}
       </div>
 
-      {(company.business_type ||
-        company.tax_id ||
-        company.registration_number ||
-        company.vat_number ||
-        company.industry ||
-        company.website) && (
-        <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+      {/* Business credentials */}
+      {hasCredentials && (
+        <div className="p-4">
+          <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">
             Business credentials
-          </h3>
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          </p>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
             {company.business_type && (
               <div>
-                <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Business type
-                </dt>
-                <dd className="mt-1 text-slate-800 dark:text-slate-200">
+                <dt className="text-xs text-slate-400 dark:text-slate-500">Business type</dt>
+                <dd className="mt-0.5 text-sm text-slate-800 dark:text-slate-200">
                   {BUSINESS_TYPE_LABELS[company.business_type] ?? company.business_type}
                 </dd>
               </div>
             )}
             {company.tax_id && (
               <div>
-                <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Tax ID
-                </dt>
-                <dd className="mt-1 text-slate-800 dark:text-slate-200">{company.tax_id}</dd>
+                <dt className="text-xs text-slate-400 dark:text-slate-500">Tax ID</dt>
+                <dd className="mt-0.5 text-sm text-slate-800 dark:text-slate-200">{company.tax_id}</dd>
               </div>
             )}
             {company.registration_number && (
               <div>
-                <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Registration number
-                </dt>
-                <dd className="mt-1 text-slate-800 dark:text-slate-200">
-                  {company.registration_number}
-                </dd>
+                <dt className="text-xs text-slate-400 dark:text-slate-500">Registration no.</dt>
+                <dd className="mt-0.5 text-sm text-slate-800 dark:text-slate-200">{company.registration_number}</dd>
               </div>
             )}
             {company.vat_number && (
               <div>
-                <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  VAT number
-                </dt>
-                <dd className="mt-1 text-slate-800 dark:text-slate-200">
-                  {company.vat_number}
-                </dd>
+                <dt className="text-xs text-slate-400 dark:text-slate-500">VAT number</dt>
+                <dd className="mt-0.5 text-sm text-slate-800 dark:text-slate-200">{company.vat_number}</dd>
               </div>
             )}
             {company.industry && (
               <div>
-                <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Industry
-                </dt>
-                <dd className="mt-1 text-slate-800 dark:text-slate-200">
-                  {company.industry}
-                </dd>
+                <dt className="text-xs text-slate-400 dark:text-slate-500">Industry</dt>
+                <dd className="mt-0.5 text-sm text-slate-800 dark:text-slate-200">{company.industry}</dd>
               </div>
             )}
             {company.website && (
-              <div className="sm:col-span-2">
-                <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Website
-                </dt>
-                <dd className="mt-1">
+              <div className="col-span-2">
+                <dt className="text-xs text-slate-400 dark:text-slate-500">Website</dt>
+                <dd className="mt-0.5 text-sm">
                   <a
-                    href={
-                      company.website.startsWith('http')
-                        ? company.website
-                        : `https://${company.website}`
-                    }
+                    href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-indigo-600 dark:text-indigo-400 hover:underline"
@@ -249,12 +212,14 @@ export function CompanySummaryTab({ company, invoices, payments, docsLoading }: 
           </dl>
         </div>
       )}
+
+      {/* Notes */}
       {company.notes && (
-        <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-          <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">Notes</dt>
-          <dd className="mt-1 text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
-            {company.notes}
-          </dd>
+        <div className="p-4">
+          <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+            Notes
+          </p>
+          <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{company.notes}</p>
         </div>
       )}
     </div>

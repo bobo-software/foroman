@@ -1,0 +1,18 @@
+---
+description: Require Skaftin docs and MCP schema verification
+alwaysApply: true
+---
+
+# Skaftin Docs and Schema Verification
+
+Before implementing or modifying Skaftin-related backend requests, data access, or schema-dependent logic:
+
+- Reference `@client-sdk-mobile` documentation for Skaftin contracts, request/response patterns, and usage examples.
+- Verify database structure and schema assumptions through the Skaftin MCP tools before coding.
+- Do not invent request shapes, table layouts, field names, or types without checking both sources above.
+
+## Required workflow
+
+1. Review relevant `@client-sdk-mobile` Skaftin docs.
+2. Use Skaftin MCP to confirm current database/schema details.
+3. Implement only after both checks are complete.

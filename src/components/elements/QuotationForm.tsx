@@ -128,11 +128,11 @@ export function QuotationForm({ quotationId, initialCompanyId, initialProjectId,
 
   useEffect(() => {
     if (!quotationId) {
-      QuotationService.count()
-        .then((count) => {
+      QuotationService.getNextNumber()
+        .then((nextNumber) => {
           setFormData((prev) => ({
             ...prev,
-            quotation_number: String(count + 1).padStart(4, '0'),
+            quotation_number: nextNumber,
           }));
         })
         .catch(() => {});

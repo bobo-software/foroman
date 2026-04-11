@@ -102,6 +102,23 @@ export class QuotationService {
     if (typeof rr?.rowCount === 'number') return rr.rowCount;
     return normalizeRows(response).length;
   }
+
+  static async getNextNumber(): Promise<string> {
+    const response = await skaftinClient.post(
+      `/app-api/database/tables/${TABLE_NAME}/select`,
+      { limit: 5000, offset: 0 }
+    );
+    const rows = normalizeRows<Quotation>(response);
+    let max = 0;
+    for (const row of rows) {
+      const match = String(row.quotation_number ?? '').match(/(\d+)$/);
+      if (match) {
+        const n = parseInt(match[1], 10);
+        if (n > max) max = n;
+      }
+    }
+    return String(max + 1).padStart(4, '0');
+  }
 }
 
 export default QuotationService;

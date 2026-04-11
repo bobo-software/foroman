@@ -142,39 +142,51 @@ export function CompanyContactsTab({ company }: CompanyContactsTabProps) {
   };
 
   const inputClass =
-    'w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400';
-  const labelClass = 'block mb-1 text-sm font-medium text-slate-700 dark:text-slate-300';
+    'w-full px-2.5 py-1.5 text-sm border border-slate-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400';
+  const labelClass = 'block mb-1 text-xs font-medium text-slate-600 dark:text-slate-400';
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
-        <div className="text-slate-500 dark:text-slate-400">Loading contacts…</div>
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm">
+        <p className="text-sm text-slate-400 dark:text-slate-500">Loading contacts…</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Contacts</h2>
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+            Contacts ({contacts.length})
+          </h2>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+            People at {company.name}
+          </p>
+        </div>
         {!showForm && (
           <button
             type="button"
             onClick={handleAdd}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+            className="inline-flex items-center gap-1.5 shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 transition-colors"
           >
-            <LuPlus size={16} />
+            <LuPlus size={13} />
             Add contact
           </button>
         )}
       </div>
 
+      {/* Inline form */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="mb-6 p-4 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50">
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+        <form
+          onSubmit={handleSubmit}
+          className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50"
+        >
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
             {editingContact ? 'Edit contact' : 'New contact'}
-          </h3>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          </p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div>
               <label htmlFor="contact-name" className={labelClass}>Name *</label>
               <input
@@ -214,7 +226,7 @@ export function CompanyContactsTab({ company }: CompanyContactsTabProps) {
                 value={form.department}
                 onChange={(e) => handleChange('department', e.target.value)}
                 className={inputClass}
-                placeholder="e.g. Finance, Procurement"
+                placeholder="e.g. Finance"
               />
             </div>
             <div>
@@ -225,22 +237,22 @@ export function CompanyContactsTab({ company }: CompanyContactsTabProps) {
                 value={form.role}
                 onChange={(e) => handleChange('role', e.target.value)}
                 className={inputClass}
-                placeholder="e.g. Manager, Director"
+                placeholder="e.g. Manager"
               />
             </div>
-            <div className="flex items-center gap-2 pt-6">
-              <input
-                id="contact-primary"
-                type="checkbox"
-                checked={form.is_primary}
-                onChange={(e) => handleChange('is_primary', e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              <label htmlFor="contact-primary" className="text-sm text-slate-700 dark:text-slate-300">
-                Primary contact
+            <div className="flex items-end pb-1.5">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  id="contact-primary"
+                  type="checkbox"
+                  checked={form.is_primary}
+                  onChange={(e) => handleChange('is_primary', e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-xs text-slate-600 dark:text-slate-400">Primary contact</span>
               </label>
             </div>
-            <div className="sm:col-span-2">
+            <div className="col-span-2 sm:col-span-3">
               <label htmlFor="contact-notes" className={labelClass}>Notes</label>
               <textarea
                 id="contact-notes"
@@ -251,18 +263,18 @@ export function CompanyContactsTab({ company }: CompanyContactsTabProps) {
               />
             </div>
           </div>
-          <div className="flex gap-3 mt-4">
+          <div className="flex gap-2 mt-3">
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors"
             >
               {saving ? 'Saving…' : editingContact ? 'Update' : 'Add'}
             </button>
             <button
               type="button"
               onClick={handleCancel}
-              className="rounded-lg border border-slate-200 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+              className="rounded-lg border border-slate-200 dark:border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
               Cancel
             </button>
@@ -270,73 +282,74 @@ export function CompanyContactsTab({ company }: CompanyContactsTabProps) {
         </form>
       )}
 
+      {/* Contact list */}
       {contacts.length === 0 ? (
-        <p className="text-slate-500 dark:text-slate-400 text-sm">
-          No contacts for this company yet.
+        <p className="px-4 py-6 text-sm text-slate-400 dark:text-slate-500 text-center">
+          No contacts yet. Add one to get started.
         </p>
       ) : (
-        <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+        <ul className="divide-y divide-slate-100 dark:divide-slate-700">
           {contacts.map((contact) => (
-            <li key={contact.id} className="py-4 first:pt-0">
-              <div className="flex items-start gap-3">
-                <div className="shrink-0 p-2 rounded-full bg-slate-100 dark:bg-slate-700">
-                  <LuUser size={20} className="text-slate-500 dark:text-slate-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-800 dark:text-slate-200">
-                      {contact.name}
+            <li key={contact.id} className="flex items-center gap-3 px-4 py-3">
+              <div className="shrink-0 p-1.5 rounded-full bg-slate-100 dark:bg-slate-700">
+                <LuUser size={14} className="text-slate-500 dark:text-slate-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                    {contact.name}
+                  </span>
+                  {contact.is_primary && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                      <LuStar size={10} />
+                      Primary
                     </span>
-                    {contact.is_primary && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                        <LuStar size={12} />
-                        Primary
-                      </span>
-                    )}
-                  </div>
-                  {(contact.role || contact.department) && (
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {contact.role}{contact.role && contact.department ? ' · ' : ''}{contact.department}
-                    </p>
-                  )}
-                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-slate-400">
-                    {contact.email && <span>{contact.email}</span>}
-                    {contact.phone && <span>{contact.phone}</span>}
-                  </div>
-                  {contact.notes && (
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 italic">
-                      {contact.notes}
-                    </p>
                   )}
                 </div>
-                <div className="shrink-0 flex items-center gap-1">
-                  {!contact.is_primary && (
-                    <button
-                      type="button"
-                      onClick={() => handleSetPrimary(contact)}
-                      className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-slate-100 dark:hover:bg-slate-700"
-                      title="Set as primary"
-                    >
-                      <LuStar size={16} />
-                    </button>
+                {(contact.role || contact.department) && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {[contact.role, contact.department].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                  {contact.email && (
+                    <span className="text-xs text-slate-500 dark:text-slate-400">{contact.email}</span>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(contact)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700"
-                    title="Edit"
-                  >
-                    <LuPencil size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(contact)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-slate-100 dark:hover:bg-slate-700"
-                    title="Delete"
-                  >
-                    <LuTrash2 size={16} />
-                  </button>
+                  {contact.phone && (
+                    <span className="text-xs text-slate-500 dark:text-slate-400">{contact.phone}</span>
+                  )}
                 </div>
+                {contact.notes && (
+                  <p className="text-xs text-slate-400 dark:text-slate-500 italic mt-0.5">{contact.notes}</p>
+                )}
+              </div>
+              <div className="shrink-0 flex items-center gap-0.5">
+                {!contact.is_primary && (
+                  <button
+                    type="button"
+                    onClick={() => handleSetPrimary(contact)}
+                    className="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    title="Set as primary"
+                  >
+                    <LuStar size={13} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleEdit(contact)}
+                  className="p-1.5 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  title="Edit"
+                >
+                  <LuPencil size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(contact)}
+                  className="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  title="Delete"
+                >
+                  <LuTrash2 size={13} />
+                </button>
               </div>
             </li>
           ))}

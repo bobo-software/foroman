@@ -48,8 +48,8 @@ export function ItemList() {
 
   const columns = useMemo<MRT_ColumnDef<Item>[]>(
     () => [
-      { accessorKey: 'name', header: 'Name', enableColumnFilter: true },
       { accessorKey: 'sku', header: 'SKU', enableColumnFilter: true },
+      { accessorKey: 'name', header: 'Name', enableColumnFilter: true },
       {
         accessorKey: 'quantity',
         header: 'Quantity',
@@ -114,7 +114,12 @@ export function ItemList() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Stock</h1>
+      <div className="">
+      <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Stock Items</h1>
+      <p className="text-slate-500 dark:text-slate-400">Manage your stock items</p>
+      </div>
+
+
       <div className="flex items-center gap-3">
         <div className="relative min-w-0 flex-1">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">

@@ -1,0 +1,13 @@
+---
+description: Enforce Skaftin verification for app source files
+globs: src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Skaftin Verification for App Files
+
+When changing files in `src/` that interact with Skaftin APIs, requests, or schema-driven data:
+
+- Check `@client-sdk-mobile` Skaftin documentation first.
+- Verify database and schema details using Skaftin MCP tools before implementing.
+- If docs and MCP disagree, treat MCP and current SDK docs as source of truth and update implementation accordingly.
