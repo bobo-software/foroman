@@ -1,6 +1,6 @@
 # UI: data tables (`AppDataTable`)
 
-Foroman uses a single shared table component for consistent list UX across admin pages.
+Foro uses a single shared table component for consistent list UX across admin pages.
 
 ## Component
 

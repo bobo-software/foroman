@@ -13,15 +13,15 @@ import toast from 'react-hot-toast';
 declare global {
   interface Window {
     google?: any;
-    __foromanGoogleMapsPromise?: Promise<void>;
+    __foroGoogleMapsPromise?: Promise<void>;
   }
 }
 
 function loadGoogleMapsPlaces(apiKey: string): Promise<void> {
   if (window.google?.maps?.places) return Promise.resolve();
-  if (window.__foromanGoogleMapsPromise) return window.__foromanGoogleMapsPromise;
+  if (window.__foroGoogleMapsPromise) return window.__foroGoogleMapsPromise;
 
-  window.__foromanGoogleMapsPromise = new Promise<void>((resolve, reject) => {
+  window.__foroGoogleMapsPromise = new Promise<void>((resolve, reject) => {
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
     script.async = true;
@@ -31,7 +31,7 @@ function loadGoogleMapsPlaces(apiKey: string): Promise<void> {
     document.head.appendChild(script);
   });
 
-  return window.__foromanGoogleMapsPromise;
+    return window.__foroGoogleMapsPromise;
 }
 
 const SA_PROVINCES = [

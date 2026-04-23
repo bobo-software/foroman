@@ -4,7 +4,7 @@
 
 ### Overview
 
-Foroman is a React + TypeScript SPA (Vite dev server on port 5178) for invoice/quotation management. The entire backend is an external BaaS called **Skaftin** — there are no local backend services, databases, or Docker Compose files in this repo.
+Foro is a React + TypeScript SPA (Vite dev server on port 5178) for invoice/quotation management. The entire backend is an external BaaS called **Skaftin** — there are no local backend services, databases, or Docker Compose files in this repo.
 
 ### Environment variables
 

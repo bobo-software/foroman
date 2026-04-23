@@ -1,4 +1,4 @@
-# Foroman documentation
+# Foro documentation
 
 | Doc | Purpose |
 |-----|---------|

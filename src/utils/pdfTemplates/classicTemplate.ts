@@ -391,6 +391,6 @@ export const classicTemplate: PdfTemplateFunctions = {
     const y = PDF.pageHeight - pdfGap(config, 12);
     doc.setFontSize(pdfFs(config, 8));
     doc.setTextColor(150, 150, 150);
-    doc.text('Foroman by Bobo Softwares (2026)', PDF.middleX, y, { align: 'center' });
+    doc.text('Foro by Bobo Softwares (2026)', PDF.middleX, y, { align: 'center' });
   },
 };

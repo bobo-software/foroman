@@ -30,7 +30,7 @@ const AppSidebar = () => {
     }
   }, [currentBusiness?.logo_url]);
 
-  const businessName = currentBusiness?.name || 'Foroman';
+  const businessName = currentBusiness?.name || 'Foro';
 
   const navLink = (to: string, label: string, icon: React.ReactNode, exact?: boolean) => {
     const isActive = exact

@@ -1,6 +1,6 @@
 # How Dark Mode is Applied
 
-This document describes how dark mode is implemented and applied across the Foroman application.
+This document describes how dark mode is implemented and applied across the Foro application.
 
 ## Overview
 

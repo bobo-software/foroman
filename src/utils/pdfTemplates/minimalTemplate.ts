@@ -344,6 +344,6 @@ export const minimalTemplate: PdfTemplateFunctions = {
     const y = PDF.pageHeight - 10;
     doc.setFontSize(7);
     doc.setTextColor(...config.secondaryTextColor);
-    doc.text('Foroman by Bobo Softwares (2026)', PDF.middleX, y, { align: 'center' });
+    doc.text('Foro by Bobo Softwares (2026)', PDF.middleX, y, { align: 'center' });
   },
 };

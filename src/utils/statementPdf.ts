@@ -152,7 +152,7 @@ export async function generateStatementPdf(
   }
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
-  doc.text('Foroman by Bobo Softwares (2026)', middleX, footerY, { align: 'center' });
+  doc.text('Foro by Bobo Softwares (2026)', middleX, footerY, { align: 'center' });
 
   doc.save(`statement-${companyName.replace(/\s+/g, '-')}-${fromDate}-${toDate}.pdf`);
 }

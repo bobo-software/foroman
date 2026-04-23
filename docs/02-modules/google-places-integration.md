@@ -2,7 +2,7 @@
 
 ## Overview
 
-Foroman uses the Google Maps JavaScript API (Places library) to provide address autocomplete on forms. When a user types into the address lookup field, Google Places returns structured address components that are parsed and mapped into the app's `Address` model.
+Foro uses the Google Maps JavaScript API (Places library) to provide address autocomplete on forms. When a user types into the address lookup field, Google Places returns structured address components that are parsed and mapped into the app's `Address` model.
 
 ## Environment Variable
 
@@ -20,9 +20,9 @@ A singleton loader function is used to avoid duplicate `<script>` tags:
 // Defined locally in each page that needs it
 function loadGoogleMapsPlaces(apiKey: string): Promise<void> {
   if (window.google?.maps?.places) return Promise.resolve();
-  if (window.__foromanGoogleMapsPromise) return window.__foromanGoogleMapsPromise;
+  if (window.__foroGoogleMapsPromise) return window.__foroGoogleMapsPromise;
 
-  window.__foromanGoogleMapsPromise = new Promise((resolve, reject) => {
+  window.__foroGoogleMapsPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
     script.async = true;
@@ -32,11 +32,11 @@ function loadGoogleMapsPlaces(apiKey: string): Promise<void> {
     document.head.appendChild(script);
   });
 
-  return window.__foromanGoogleMapsPromise;
+  return window.__foroGoogleMapsPromise;
 }
 ```
 
-The promise is cached on `window.__foromanGoogleMapsPromise` so concurrent calls from different components share one load.
+The promise is cached on `window.__foroGoogleMapsPromise` so concurrent calls from different components share one load.
 
 ## Address Parsing
 

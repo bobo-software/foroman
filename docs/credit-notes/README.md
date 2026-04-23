@@ -1,6 +1,6 @@
 # Credit notes
 
-This folder documents how **credit notes** work in Foroman. Credit notes correct or reverse amounts for wrongly invoiced items; they are stored in the same tables as invoices with a discriminator column.
+This folder documents how **credit notes** work in Foro. Credit notes correct or reverse amounts for wrongly invoiced items; they are stored in the same tables as invoices with a discriminator column.
 
 For canonical SQL migrations, see [../project-database-schema.md](../project-database-schema.md) (section 7).
 

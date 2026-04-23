@@ -1,4 +1,4 @@
-# Foroman — Implementation Plan
+# Foro — Implementation Plan
 
 ERP-like app: landing, auth, optional company onboarding, items (products), quotations, invoices (with PDF/download/send), and customer statements. Tech: Zustand, React Hot Toast, Skaftin (SuperTokens-based app-user auth).
 

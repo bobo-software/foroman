@@ -393,6 +393,6 @@ export const modernTemplate: PdfTemplateFunctions = {
 
     doc.setFontSize(8);
     doc.setTextColor(...config.secondaryTextColor);
-    doc.text('Foroman by Bobo Softwares (2026)', PDF.middleX, y, { align: 'center' });
+    doc.text('Foro by Bobo Softwares (2026)', PDF.middleX, y, { align: 'center' });
   },
 };

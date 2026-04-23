@@ -9,7 +9,7 @@ import { skaftinClient } from '../backend';
 import { SKAFTIN_CONFIG } from '../config/skaftin.config';
 import { TokenManager } from './TokenManager';
 
-const BUCKET_NAME = 'foroman';
+const BUCKET_NAME = 'foro';
 
 export class StorageService {
   /**

@@ -373,7 +373,7 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
 
         {/* ── Footer ── */}
         <div className="mt-auto pt-6 text-center">
-          <p className="text-xs text-gray-300 dark:text-gray-600">Foroman by Bobo Softwares (2026)</p>
+          <p className="text-xs text-gray-300 dark:text-gray-600">Foro by Bobo Softwares (2026)</p>
         </div>
       </div>
 
@@ -393,7 +393,7 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
             </p>
           </div>
           <div className="mt-auto pt-6 text-center">
-            <p className="text-xs text-gray-300 dark:text-gray-600">Foroman by Bobo Softwares (2026)</p>
+            <p className="text-xs text-gray-300 dark:text-gray-600">Foro by Bobo Softwares (2026)</p>
           </div>
         </div>
       )}

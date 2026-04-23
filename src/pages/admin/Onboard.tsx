@@ -11,7 +11,7 @@ import type { CreateCompanyDto } from '@/types/company';
 declare global {
   interface Window {
     google?: any;
-    __foromanGoogleMapsPromise?: Promise<void>;
+    __foroGoogleMapsPromise?: Promise<void>;
   }
 }
 
@@ -33,9 +33,9 @@ const SA_PROVINCES = [
 
 function loadGoogleMapsPlaces(apiKey: string): Promise<void> {
   if (window.google?.maps?.places) return Promise.resolve();
-  if (window.__foromanGoogleMapsPromise) return window.__foromanGoogleMapsPromise;
+    if (window.__foroGoogleMapsPromise) return window.__foroGoogleMapsPromise;
 
-  window.__foromanGoogleMapsPromise = new Promise<void>((resolve, reject) => {
+  window.__foroGoogleMapsPromise = new Promise<void>((resolve, reject) => {
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
     script.async = true;
@@ -45,7 +45,7 @@ function loadGoogleMapsPlaces(apiKey: string): Promise<void> {
     document.head.appendChild(script);
   });
 
-  return window.__foromanGoogleMapsPromise;
+  return window.__foroGoogleMapsPromise;
 }
 
 function placeCountryIsSouthAfrica(place: any): boolean {
@@ -311,7 +311,7 @@ export function Onboard() {
         <div className="text-center">
           <Link to="/app" className="inline-flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-slate-100 no-underline">
             <img src="/favicon.png" alt="" className="h-10 w-10 rounded-lg object-contain" />
-            Foroman
+            Foro
           </Link>
           <h2 className="mt-4 text-xl font-semibold text-slate-800 dark:text-slate-100">
             {isEditMode ? 'Edit company details' : 'Company details'}
