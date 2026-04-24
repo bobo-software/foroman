@@ -29,8 +29,19 @@ jobs:
         if: startsWith(github.ref, 'refs/heads/')
         run: echo "BRANCH_TAG=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
 
+      - name: Verify Infisical token secret
+        env:
+          RESOLVED_TOKEN: ${{ secrets.INFISICAL_TOKEN || secrets.VITE_SKAFTIN_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$RESOLVED_TOKEN" ]; then
+            echo "::error::Missing required secret. Set INFISICAL_TOKEN (preferred) or VITE_SKAFTIN_ACCESS_TOKEN."
+            exit 1
+          fi
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
+        env:
+          INFISICAL_TOKEN_RESOLVED: ${{ secrets.INFISICAL_TOKEN || secrets.VITE_SKAFTIN_ACCESS_TOKEN }}
         with:
           context: .
           push: true
@@ -38,7 +49,7 @@ jobs:
             INFISICAL_ENV=prod
             INFISICAL_DOMAIN=https://app.infisical.com
           secrets: |
-            infisical_token=${{ secrets.INFISICAL_TOKEN }}
+            infisical_token=${{ env.INFISICAL_TOKEN_RESOLVED }}
           tags: |
             dr.bobosoftware.co.za/foro:latest
             dr.bobosoftware.co.za/foro:${{ env.VERSION != '' && env.VERSION || env.BRANCH_TAG }}
