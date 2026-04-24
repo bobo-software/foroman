@@ -43,6 +43,9 @@ const BusinessSettingsTab = lazy(() => import('@pages/admin/settings/tabs').then
 const BankingSettingsTab = lazy(() => import('@pages/admin/settings/tabs').then((m) => ({ default: m.BankingSettingsTab })));
 const DocumentSettingsTab = lazy(() => import('@pages/admin/settings/tabs').then((m) => ({ default: m.DocumentSettingsTab })));
 const PreferencesSettingsTab = lazy(() => import('@pages/admin/settings/tabs').then((m) => ({ default: m.PreferencesSettingsTab })));
+const TeamSettingsTab = lazy(() => import('@pages/admin/settings/tabs').then((m) => ({ default: m.TeamSettingsTab })));
+const InviteAccept = lazy(() => import('@pages/team/InviteAccept').then((m) => ({ default: m.InviteAccept })));
+const InvitePostAuth = lazy(() => import('@pages/team/InvitePostAuth').then((m) => ({ default: m.InvitePostAuth })));
 
 /**
  * Auth and WebSocket hooks wrapper component
@@ -108,6 +111,8 @@ function App() {
             <Route path="/reset-password/verify" element={<VerifyForgotPasswordOtp />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
+            <Route path="/invite/:token" element={<InviteAccept />} />
+            <Route path="/invite/:token/accept" element={<InvitePostAuth />} />
 
             {/* Onboarding - requires auth but no role check */}
             <Route path="/onboard" element={<ProtectedRoute><Onboard /></ProtectedRoute>} />
@@ -152,6 +157,7 @@ function App() {
                 <Route path="banking" element={<BankingSettingsTab />} />
                 <Route path="documents" element={<DocumentSettingsTab />} />
                 <Route path="preferences" element={<PreferencesSettingsTab />} />
+                <Route path="team" element={<TeamSettingsTab />} />
               </Route>
             </Route>
 

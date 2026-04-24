@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { LuEye, LuEyeOff } from 'react-icons/lu';
 import { authService } from '../../services/authService';
@@ -7,6 +7,10 @@ import useAuthStore from '../../stores/data/AuthStore';
 
 export function Register() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const stateFrom = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
+  const returnTo = new URLSearchParams(location.search).get('returnTo') ?? undefined;
+  const from = stateFrom ?? returnTo;
   
   const [name, setName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -36,9 +40,9 @@ export function Register() {
       return;
     }
     if (isAuthenticated && !requiresOtpVerification) {
-      navigate('/app', { replace: true });
+      navigate(from ?? '/app', { replace: true });
     }
-  }, [isAuthenticated, requiresOtpVerification, sessionUser, navigate]);
+  }, [isAuthenticated, requiresOtpVerification, sessionUser, navigate, from]);
 
   // Clear errors on unmount
   useEffect(() => {
@@ -81,7 +85,7 @@ export function Register() {
         navigate('/verify-otp', { replace: true, state: { email: email.trim(), userId: result.userId } });
       } else {
         toast.success('Account created');
-        navigate('/onboard', { replace: true });
+        navigate(from ?? '/onboard', { replace: true });
       }
     } catch (err: unknown) {
       // Error is already set in the store by authService
@@ -240,7 +244,7 @@ export function Register() {
         
         <p className="text-center text-sm text-slate-600 dark:text-slate-400">
           Already have an account?{' '}
-          <Link to="/login" className="font-medium text-slate-900 dark:text-slate-100 hover:underline">
+          <Link to={from ? `/login?returnTo=${encodeURIComponent(from)}` : '/login'} className="font-medium text-slate-900 dark:text-slate-100 hover:underline">
             Log in
           </Link>
         </p>

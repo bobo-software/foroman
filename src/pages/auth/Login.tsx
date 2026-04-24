@@ -82,7 +82,9 @@ function mapNewLoginResponseToSessionUser(raw: LoginApiShape): SessionUser {
 export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
+  const stateFrom = (location.state as { from?: { pathname: string } })?.from?.pathname;
+  const returnTo = new URLSearchParams(location.search).get('returnTo') ?? undefined;
+  const from = stateFrom ?? returnTo;
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -317,7 +319,7 @@ export function Login() {
         <p className="text-center text-sm text-slate-600 dark:text-slate-400">
           Don&apos;t have an account?{' '}
           <Link
-            to="/register"
+            to={from ? `/register?returnTo=${encodeURIComponent(from)}` : '/register'}
             className="font-medium text-slate-900 dark:text-slate-100 hover:underline"
           >
             Register

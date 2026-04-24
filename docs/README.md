@@ -6,5 +6,9 @@
 | [Project database schema](project-database-schema.md) | Tables and migrations reference |
 | [Credit notes](credit-notes/README.md) | Invoice credit notes: DB, types, UI, PDF |
 | [UI: data tables](02-modules/ui-data-tables.md) | `AppDataTable` usage across the app |
+| [Teams rollout](00-overview/teams-rollout-plan.md) | Delivery phases, MCP validation, readiness checks |
+| [Teams roles](01-roles/teams-permissions-model.md) | Role matrix and authorization rules |
+| [Teams module](02-modules/teams-invitations-and-memberships.md) | Invite/accept/member-management UX and architecture |
+| [Teams DB + API contract](03-database/teams-schema-contract.md) | Schema, endpoints, constraints, and SQL migration |
 
 Component-level notes for the shared table live next to the source: [`src/components/elements/AppDataTable.md`](../src/components/elements/AppDataTable.md).

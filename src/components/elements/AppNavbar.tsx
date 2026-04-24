@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import useAuthStore from '../../stores/data/AuthStore';
 import useThemeStore from '../../stores/state/ThemeStore';
+import { useBusinessStore } from '../../stores/data/BusinessStore';
 import AppProfileComponent from './AppProfileComponent';
 import { ConnectionDot } from './ConnectionStatus';
 
@@ -46,6 +47,9 @@ const AppNavbar = () => {
   const sessionUser = useAuthStore((s) => s.sessionUser);
   const theme = useThemeStore((s) => s.theme);
   const breadcrumbs = useBreadcrumbs();
+  const businesses = useBusinessStore((s) => s.businesses);
+  const currentBusiness = useBusinessStore((s) => s.currentBusiness);
+  const setCurrentBusinessById = useBusinessStore((s) => s.setCurrentBusinessById);
 
   // Sync theme to document.documentElement (admin pages only).
   // Cleanup on unmount removes dark when navigating to landing/auth.
@@ -60,7 +64,7 @@ const AppNavbar = () => {
     };
   }, [theme]);
 
-  const companyName = sessionUser?.association_name || sessionUser?.name || 'My Company';
+  const companyName = currentBusiness?.name || sessionUser?.association_name || sessionUser?.name || 'My Company';
 
   return (
     <header className="shrink-0 flex items-center justify-between gap-4 px-6 py-3 print:hidden bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
@@ -87,6 +91,25 @@ const AppNavbar = () => {
         </nav>
       </div>
       <div className="flex items-center gap-4">
+        {businesses.length > 1 && (
+          <label className="sr-only" htmlFor="org-switcher">
+            Switch business
+          </label>
+        )}
+        {businesses.length > 1 && (
+          <select
+            id="org-switcher"
+            value={currentBusiness?.id ?? ''}
+            onChange={(event) => setCurrentBusinessById(Number(event.target.value))}
+            className="max-w-[210px] rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-3 py-2 text-sm text-slate-800 dark:text-slate-100"
+          >
+            {businesses.map((business) => (
+              <option key={business.id} value={business.id}>
+                {business.name}
+              </option>
+            ))}
+          </select>
+        )}
         <div className="shrink-0">
           <input
             type="search"

@@ -11,19 +11,17 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
-# Install Infisical CLI for build-time secret injection.
+# Install Infisical CLI.
 RUN npm install -g @infisical/cli
 
 # Copy the rest of the source code
 COPY . .
 
-# Infisical config for build-time secret injection.
-# Provide INFISICAL_ENV/INFISICAL_DOMAIN via --build-arg and token via BuildKit secret:
-# --secret id=infisical_token,env=INFISICAL_TOKEN
+# Infisical config.
 ARG INFISICAL_ENV=prod
 ARG INFISICAL_DOMAIN=https://app.infisical.com
 
-# Build with secrets injected at build time (no secrets persisted in image layers).
+# Build app with Infisical-injected secrets.
 RUN --mount=type=secret,id=infisical_token \
     INFISICAL_TOKEN="$(cat /run/secrets/infisical_token)" && \
     infisical run --token="$INFISICAL_TOKEN" --domain="$INFISICAL_DOMAIN" --env="$INFISICAL_ENV" -- npm run build

@@ -8,6 +8,7 @@ const SETTINGS_TABS = [
   { to: '/app/settings/banking', label: 'Banking', exact: false },
   { to: '/app/settings/documents', label: 'Documents', exact: false },
   { to: '/app/settings/preferences', label: 'Preferences', exact: false },
+  { to: '/app/settings/team', label: 'Team', exact: false },
 ];
 
 export function SettingsPage() {

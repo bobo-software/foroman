@@ -11,4 +11,5 @@ export { useContactStore } from './data/ContactStore';
 export { useProjectStore } from './data/ProjectStore';
 export { useDashboardStore } from './data/DashboardStore';
 export { useBusinessDocumentContextStore } from './data/BusinessDocumentContextStore';
+export { useTeamStore } from './data/TeamStore';
 export { default as useThemeStore } from './state/ThemeStore';

@@ -9,6 +9,19 @@ import type { Company, CreateCompanyDto } from '../types/company';
 const TABLE_NAME = 'companies';
 
 export class CompanyService {
+  private static async listUserCompanyLinks(userId: number): Promise<Array<{ company_id: number }>> {
+    const response = await skaftinClient.post<{ rows: Array<{ company_id: number }> } | Array<{ company_id: number }>>(
+      '/app-api/database/tables/user_companies/select',
+      {
+        where: { user_id: userId },
+        limit: 500,
+        offset: 0,
+      }
+    );
+    const data = response.data;
+    return Array.isArray(data) ? data : (data?.rows || []);
+  }
+
   static async findAll(params?: {
     where?: Record<string, unknown>;
     orderBy?: string;
@@ -70,6 +83,25 @@ export class CompanyService {
       orderDirection: 'ASC',
       limit: 50,
     });
+  }
+
+  static async getAccessibleCompaniesForUser(userId: number): Promise<Company[]> {
+    const [ownerCompanies, userCompanyLinks] = await Promise.all([
+      this.getOwnerCompaniesForUser(userId),
+      this.listUserCompanyLinks(userId),
+    ]);
+
+    const linkedCompanyIds = new Set(userCompanyLinks.map((row) => row.company_id).filter(Boolean));
+    const ownerIds = new Set(ownerCompanies.map((company) => company.id).filter(Boolean) as number[]);
+    const missingIds = [...linkedCompanyIds].filter((id) => !ownerIds.has(id));
+
+    if (missingIds.length === 0) {
+      return ownerCompanies;
+    }
+
+    const linkedCompanies = await Promise.all(missingIds.map((id) => this.findById(id)));
+    const validLinkedCompanies = linkedCompanies.filter((company): company is Company => Boolean(company));
+    return [...ownerCompanies, ...validLinkedCompanies];
   }
 
   static async createOwnerCompany(userId: number, data: CreateCompanyDto): Promise<Company> {
