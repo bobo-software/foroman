@@ -136,3 +136,15 @@ See `client-sdk/` directory for detailed SDK documentation.
 ## License
 
 MIT
+
+## Coolify Deployment Notes
+
+- Build Pack: `Dockerfile`
+- Base Directory: `/`
+- Dockerfile Location: `/dockerfile`
+- Container Port: `80`
+- Build-time variables:
+  - `INFISICAL_TOKEN=<service-token>`
+  - `INFISICAL_ENV=prod`
+  - `INFISICAL_DOMAIN=https://infisical.bobosoftware.co.za`
+- Remove backend-only pre-deploy commands (for example `php artisan migrate`) for this frontend service.

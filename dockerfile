@@ -18,9 +18,9 @@ RUN npm install -g @infisical/cli
 COPY . .
 
 # Infisical config.
-ARG INFISICAL_ENV=prod
-ARG INFISICAL_DOMAIN=https://app.infisical.com
-ARG INFISICAL_TOKEN=
+ARG INFISICAL_ENV
+ARG INFISICAL_DOMAIN
+ARG INFISICAL_TOKEN
 
 # Build app with Infisical-injected secrets.
 # Supports either:
@@ -29,6 +29,8 @@ ARG INFISICAL_TOKEN=
 RUN --mount=type=secret,id=infisical_token,required=false \
     TOKEN="$INFISICAL_TOKEN" && \
     if [ -f /run/secrets/infisical_token ]; then TOKEN="$(cat /run/secrets/infisical_token)"; fi && \
+    if [ -z "$INFISICAL_DOMAIN" ]; then echo "Missing INFISICAL_DOMAIN build arg."; exit 1; fi && \
+    if [ -z "$INFISICAL_ENV" ]; then echo "Missing INFISICAL_ENV build arg."; exit 1; fi && \
     if [ -z "$TOKEN" ]; then echo "Missing Infisical token. Provide BuildKit secret 'infisical_token' or build arg INFISICAL_TOKEN."; exit 1; fi && \
     infisical run --token="$TOKEN" --domain="$INFISICAL_DOMAIN" --env="$INFISICAL_ENV" -- npm run build
 
@@ -41,8 +43,8 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # Copy the custom nginx configuration file
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port 3000
-EXPOSE 82
+# Expose nginx HTTP port
+EXPOSE 80
 
 # Run the application with nginx
 CMD ["nginx", "-g", "daemon off;"]
